@@ -1,0 +1,28 @@
+{
+  "checks": [
+    "reloaded staff interaction restores dialogue and prevents order assignment",
+    "closing restored dialogue releases staff to take waiting orders",
+    "approaching staff leaves 50 to 100 pixels personal space",
+    "test-only delayed fetch starts",
+    "closing dialogue aborts delayed request",
+    "aborted response cannot write dialogue or memory",
+    "updated dialogue screenshot contains one real model response",
+    "no JavaScript runtime errors in review flows"
+  ],
+  "failures": [],
+  "browserErrors": [],
+  "screenshots": [
+    "immersive-ai-dialogue.png",
+    "immersive-day.png",
+    "immersive-night.png",
+    "immersive-1280.png",
+    "immersive-colleagues.png"
+  ],
+  "realAI": {
+    "model": "qwen-plus",
+    "calls": 1
+  },
+  "approachDistance": 82.0,
+  "colleagueScreenshot": "Layout fixture with representative text; real colleague exchange was verified in qa-report.json.",
+  "passed": true
+}

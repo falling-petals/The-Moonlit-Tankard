@@ -1,0 +1,19 @@
+{
+  "tool": "image_gen.imagegen (built-in)",
+  "prompts": [
+    {
+      "id": "tavern-night",
+      "prompt": "Use case: lighting-weather. Edit the provided daytime empty contemporary tavern background into NIGHT. Preserve EXACTLY the full room architecture, camera framing, all wall/glass frames, floor pattern, doorway, bar/kitchen/storage/plant positions. Do not add any people, tables, dining chairs or loose objects. This is the NIGHT background of the same 2D pixel-art management game. Replace all orange daylight outdoors with deep midnight navy and blue-cyan rainy exterior. REMOVE ALL daylight/sunset beams and ALL long diagonal window-frame sunlight shadows from the interior floor. The interior floor now appears cool muted slate/teal with recognizable cream microcement base, much darker than day, still easily readable. Controlled coral-peach LED glow under bar and bottle shelves; warm round opal lamps along edges, subtle amber pools of light. Discrete cool cyan rain-reflection highlights only near glass walls and exterior entrance threshold. Center dining floor stays dry and dark teal, no huge orange reflective pool. Boutique contemporary night-lounge atmosphere like refined cyan and coral cinema color lighting, not medieval and not generic cyberpunk. CRISP deliberate square pixel clusters, no smooth photoreal shading. Same aspect ratio and full-scene framing as input. No text, borders, watermarks or characters.",
+      "references": [
+        "D:/The Moonlit Tankard/assets/art/tavern-day.png"
+      ],
+      "transparent": false
+    },
+    {
+      "id": "zone-studies",
+      "prompt": "A refined 2D PIXEL ART environment concept board for THE MOONLIT TANKARD contemporary glasshouse tavern. Four equal separate scene panels arranged 2x2 with slim deep navy gutters, no text, labels or watermark. Consistent crisp square-pixel cluster rendering, NOT isometric, flat orthographic overhead classic 2D management game camera. Palette cream microcement, light ash wood, sage upholstery, terracotta, slender black metal glass framing, amber/coral lamps and cyan night rain. Upper left cozy light-filled common room at day with pale wood square dining tables, sage chairs, plants, sunlight geometrical shadows, no people. Upper right intimate bar at night, brushed brass beer taps, bottle shelves, coral undercounter light, navy-teal glass windows with rain, no people. Lower left contemporary professional open kitchen with stainless counters, cream tile, electric stovetop, food prep and tiny herbs, warm opal lamps, no people. Lower right modern cellar with cool blue stone-like tile, neatly organized wood wine casks, stainless fermentation vessels, glass wine cabinet, concealed amber shelves and short staircase, no people. Stylish modern hospitality, generous air and restrained texture; no medieval fireplace/torches/rough dungeon walls. Beautiful premium cohesive playable environment studies.",
+      "references": null,
+      "transparent": false
+    }
+  ]
+}

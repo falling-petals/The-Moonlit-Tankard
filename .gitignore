@@ -1,0 +1,26 @@
+__pycache__/
+*.pyc
+
+# Local credentials and machine-specific settings
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+.venv/
+venv/
+node_modules/
+.vscode/
+.idea/
+
+# Generated packages, caches and logs
+release/
+dist/
+coverage/
+.pytest_cache/
+.superpowers/
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

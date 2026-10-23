@@ -1,0 +1,17 @@
+{
+  "mapChecks": [
+    {
+      "floor": "ground",
+      "reachableTiles": 512,
+      "interactionTargets": 43,
+      "allReachable": true
+    },
+    {
+      "floor": "cellar",
+      "reachableTiles": 104,
+      "interactionTargets": 10,
+      "allReachable": true
+    }
+  ],
+  "transitionsValid": true
+}

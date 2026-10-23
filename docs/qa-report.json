@@ -1,0 +1,62 @@
+{
+  "checks": [
+    "localhost static preview responds",
+    "one-time environment fragment removed",
+    "environment key reaches settings in tab memory",
+    "real model connection succeeds",
+    "walking to staff opens a scene dialogue without a fullscreen modal",
+    "real model remembers and recalls the player preference",
+    "world canvas covers the viewport",
+    "ground mouse click moves the human player",
+    "walking to hire station recruits employee",
+    "walking to inventory purchases stock",
+    "walking to upgrade station buys equipment",
+    "walking to ledger changes menu",
+    "walking to event station opens activity panel",
+    "1280x800 stays within viewport",
+    "human walks to bar, consumes stock and prepares a drink",
+    "reload preserves carried drink and table ownership",
+    "clicking table carries and delivers the prepared order",
+    "human cleans a dirty table",
+    "pause freezes the business clock",
+    "invalid import preserves the current save",
+    "exported save excludes credentials",
+    "persistent local storage excludes credentials",
+    "legacy version-one save migrates to a human player",
+    "nearby idle coworkers naturally exchange two real model replies",
+    "an onsite customer request triggers a natural real model reply",
+    "full business day settles once with autonomous service",
+    "next day resets business and retains progression",
+    "art gallery includes human player and all eight sources",
+    "no JavaScript runtime errors"
+  ],
+  "failures": [],
+  "browserErrors": [],
+  "realAI": {
+    "connectionSeconds": 1.08,
+    "verifiedFlows": [
+      "connection",
+      "player-dialogue",
+      "memory-recall",
+      "natural-colleague",
+      "natural-customer"
+    ],
+    "model": "qwen-plus"
+  },
+  "screenshots": [
+    "immersive-ai-dialogue.png",
+    "immersive-day.png",
+    "immersive-night.png",
+    "immersive-1280.png",
+    "immersive-colleagues.png",
+    "immersive-summary.png"
+  ],
+  "fullDay": {
+    "served": 15,
+    "revenue": 448,
+    "tips": 30,
+    "wages": 18,
+    "profit": 460
+  },
+  "passed": true
+}

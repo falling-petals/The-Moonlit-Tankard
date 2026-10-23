@@ -1,0 +1,12 @@
+{
+  "name": "moonlit-tankard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A frontend-only pixel tavern with AI staff",
+  "scripts": {
+    "start": "python tools/launch.py",
+    "serve": "python tools/launch.py --no-open",
+    "test": "node --test tests/*.test.js"
+  }
+}
