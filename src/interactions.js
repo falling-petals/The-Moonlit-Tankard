@@ -1,5 +1,5 @@
 import {requestStaffReply,remember} from './ai.js';
-import {staffDefinition,gameClock,DRINKS} from './content.js';
+import {staffDefinition,gameClock,DRINKS,REQUESTS,ROLE_NAMES} from './content.js';
 import {log} from './engine.js';
 import {RECIPES,STRATEGIES,drinkInfo} from './progression.js';
 
@@ -36,9 +36,10 @@ export function createInteractions({getState,getConfig,onUpdate,onError,requestR
     if(kind==='player'){worker.conversation.push({role:'player',text,time:gameClock(state.elapsed)});worker.conversation=worker.conversation.slice(-40);}
     const request={controller:new AbortController(),kind};active=request;
     status.busy=true;status.staff=id;status.lastKind=kind;status.error='';status.partial='';status.phase='requesting';notify();
-    const context=structuredClone({day:state.day,time:gameClock(state.elapsed),phase:state.phase,role:worker.role,gold:state.gold,
-      stock:state.stock,tables:state.tables.map(t=>({table:t.id,status:t.status,drink:t.order?drinkInfo(state,t.order.drink)?.name:null})),
-      coworkers:state.staff.map(w=>staffDefinition(w.id).name),recentDialogue:worker.conversation.slice(-6),
+    const context=structuredClone({day:state.day,time:gameClock(state.elapsed),phase:state.phase,role:ROLE_NAMES[worker.role],gold:state.gold,
+      stock:state.stock,tables:state.tables.filter(t=>t.enabled!==false).map(t=>({table:t.id,status:t.status,drink:t.order?drinkInfo(state,t.order.drink)?.name:null,
+        patience:Math.max(0,Math.ceil(t.patience)),request:t.request?{...REQUESTS[t.request.id],fulfilled:t.request.fulfilled}:null})),
+      coworkers:state.staff.map(w=>({name:staffDefinition(w.id).name,role:ROLE_NAMES[w.role],job:w.job?.stage||'idle'})),recentDialogue:worker.conversation.slice(-6),
       owner:'店主是正在操作游戏的人类玩家，不是AI员工。',recentWork:state.logs.slice(-5).map(l=>l.text),
       progression:state.progression??null,recipe:RECIPES[state.progression?.equipped]??null,
       strategy:STRATEGIES[state.progression?.strategy]??null,recentEvents:state.events.slice(-10),...extra});
@@ -89,7 +90,7 @@ export function createInteractions({getState,getConfig,onUpdate,onError,requestR
       if(social===session){for(const w of session.workers)w.socialUntil=0;social=null;notify();}
     }
   }
-  function guestEligible(w,t){return w&&t&&w.chatWith!=='player'&&['waiting','preparing','served'].includes(t.status)&&near(w,{x:t.x,y:t.y+100})&&(!t.worker||t.worker===w.id)&&(!w.job||w.job.table===t.id);}
+  function guestEligible(w,t){return w&&t&&w.chatWith!=='player'&&['waiting','preparing','ready','served'].includes(t.status)&&near(w,{x:t.x,y:t.y+100})&&(!t.worker||t.worker===w.id)&&(!w.job||w.job.table===t.id);}
   function tick(){
     const s=sync(),time=now(),config=getConfig();
     if(s.phase!=='open'||s.paused||!config.auto||!config.key)return;
@@ -104,11 +105,11 @@ export function createInteractions({getState,getConfig,onUpdate,onError,requestR
       }
       if(event.type!=='guest-request'){seen.add(event.id);continue;}
       const table=s.tables.find(t=>t.id===event.table);
-      if(!table||!['waiting','preparing','served'].includes(table.status)){seen.add(event.id);continue;}
+      if(!table||!['waiting','preparing','ready','served'].includes(table.status)){seen.add(event.id);continue;}
       if(active||social||time-lastAuto<20000||autoCount>=10)continue;
       const w=s.staff.find(w=>guestEligible(w,table));if(!w)continue;
       seen.add(event.id);lastAuto=time;autoCount++;
-      void ask(w.id,`顾客在${event.table.slice(1)}号桌提出：“${event.text}”。菜单已点${DRINKS[event.drink]?.name}。作为现场服务店员自然回应一句，约40至60字。`,'guest',{request:event.text,table:event.table});
+      void ask(w.id,`顾客在${event.table.slice(1)}号桌提出：“${event.text}”。菜单已点${drinkInfo(s,event.drink)?.name}。作为现场服务店员自然回应一句，约20至40字。特殊需求只有fulfilled为true才已经落实；未落实时可提醒店主或表达听到要求，不要宣称已经处理。`,'guest',{request:event.text,table:event.table});
     }
     if(seen.size>500){seen.clear();for(const e of s.events)seen.add(e.id);}
     if(!active&&!social&&s.elapsed>100&&time-lastColleague>120000&&time-lastAuto>40000&&autoCount<9){

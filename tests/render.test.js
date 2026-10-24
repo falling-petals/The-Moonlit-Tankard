@@ -55,3 +55,29 @@ test('an optional event atlas decoding failure preserves the existing room',asyn
   const ctx=new Proxy({},{get:()=>()=>{}}),canvas={getContext:()=>ctx,addEventListener(){}};
   try {await assert.doesNotReject(createRenderer(canvas));}finally{Object.assign(globalThis,original);}
 });
+
+test('locked furniture stays absent, waiting rings track patience, and ready drinks appear at the pass',async()=>{
+  const original={fetch:globalThis.fetch,Image:globalThis.Image,window:globalThis.window};
+  const ids=['tavern-day','tavern-night','player-atlas','staff-atlas','customers-atlas','furniture-atlas','items-atlas'];
+  globalThis.fetch=async()=>({ok:true,json:async()=>({assets:Object.fromEntries(ids.map(id=>[id,{src:id,frames:Array.from({length:16},(_,i)=>({rect:[i*100,0,100,100]}))}]))})});
+  globalThis.Image=class{async decode(){}};globalThis.window={devicePixelRatio:1};
+  const art=[],arcs=[],labels=[];
+  const ctx=new Proxy({measureText:t=>({width:t.length*10}),drawImage:(...a)=>art.push(a),arc:(...a)=>arcs.push(a),fillText:t=>labels.push(t)},{get:(o,k)=>k in o?o[k]:(()=>{})});
+  const canvas={getContext:()=>ctx,getBoundingClientRect:()=>({left:0,top:0,width:1536,height:1024}),addEventListener(){}};
+  try{
+    const r=await createRenderer(canvas),s=createGame();s.tables.forEach((t,i)=>t.enabled=i===0);
+    const t=s.tables[0];Object.assign(t,{status:'ready',patience:25,patienceMax:100,order:{drink:'ale',quantity:2},guest:{x:t.x-105,y:t.y+25,path:[],variant:0,party:1}});
+    r.draw(s,0);
+    assert.equal(art.filter(a=>a[0]?.src==='furniture-atlas').length,4,'only one table, two chairs, and floor decor');
+    const ring=arcs.find(a=>a[2]===15&&a[3]===-Math.PI/2);assert.ok(ring);assert.equal(ring[4],0);
+    assert.ok(art.some(a=>a[0]?.src==='items-atlas'&&a[6]<350),'ready drink tray at the bar');
+    assert.ok(!labels.some(t=>String(t).includes('待接单')||String(t).includes('空闲')),'no persistent table status labels');
+    const locked=s.tables[1],hit=r.hitTest(locked.x,locked.y);assert.equal(hit.type,'ground','locked expansion slots never steal movement clicks');
+    assert.equal(r.hitTest(t.x,t.y).type,'ground','tabletop is not a target');
+    assert.equal(r.hitTest(t.guest.x,t.guest.y-42).type,'guest');
+    assert.equal(r.hitTest(t.guest.x+40,t.guest.y-104).type,'guest','only the visible order bubble is clickable');
+    t.status='dirty';t.guest=null;r.draw(s,100);
+    assert.equal(r.hitTest(t.x+95,t.y+82).type,'service','small cleaning icon retains manual service');
+    assert.equal(r.hitTest(t.x+120,t.y+82).type,'ground');
+  }finally{Object.assign(globalThis,original);}
+});

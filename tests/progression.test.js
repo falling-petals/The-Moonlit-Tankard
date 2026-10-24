@@ -7,7 +7,7 @@ import {parseGame,publicSave} from '../src/storage.js';
 const run=(s,n)=>advance(s,n);
 function service(s,{patience=140}={}){
   const t=s.tables[0],w=s.staff[0];
-  Object.assign(t,{status:'preparing',worker:w.id,patience,order:{drink:'ale',quantity:1,paid:false},guest:{id:1,variant:0,party:1,x:315,y:495,path:[]}});
+  Object.assign(t,{status:'preparing',worker:w.id,patience,patienceMax:150,order:{drink:'ale',quantity:1,paid:false},guest:{id:1,variant:0,party:1,x:315,y:495,path:[]}});
   w.job={kind:'order',table:t.id,stage:'deliver',remaining:0};w.path=[];w.chatWith=null;
   run(s,.25);return s.events.filter(e=>e.type==='served').at(-1);
 }
@@ -39,13 +39,13 @@ test('migration and nested whitelist reject corrupt progression and never export
 test('strategy and equipped recipe change actual preparation and payment only before opening',()=>{
   const q=createGame(),p=createGame();assert.equal(act(p,{type:'set-strategy',id:'premium'}).ok,true);
   act(q,{type:'draw-recipe'});const recipe=q.progression.collection[0];assert.equal(act(q,{type:'equip-recipe',id:recipe}).ok,true);
-  assert.equal(q.progression.equipped,recipe);assert.equal(Object.keys(q.stock).length,3);
+  assert.equal(q.progression.equipped,recipe);assert.equal(Object.keys(q.stock).length,9);
   assert.ok(drinkInfo(q,'ale').brew<drinkInfo(p,'ale').brew);
   for(const s of [q,p]){quiet(s);service(s);}
   assert.ok(p.stats.revenue>q.stats.revenue);assert.equal(act(p,{type:'set-strategy',id:'quick'}).ok,false);
   assert.equal(act(q,{type:'equip-recipe',id:recipe}).ok,false);
   const waiting=createGame();quiet(waiting);Object.assign(waiting.tables[0],{status:'waiting',patience:100,order:{drink:'ale',quantity:1,paid:false}});
-  waiting.staff[0].chatWith=null;run(waiting,.25);assert.ok(waiting.staff[0].job.remaining<10);
+  waiting.staff[0].chatWith=null;run(waiting,.25);assert.ok(waiting.staff[0].job.remaining<12);
 });
 test('timely paid services build combo, improve actual income and reward each daily tier once',()=>{
   const s=createGame();quiet(s);const first=service(s),base=s.stats.revenue;

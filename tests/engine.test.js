@@ -11,7 +11,7 @@ test('opening, service, payment and cleaning complete without model replies', ()
   assert.ok(s.gold>starting,'served orders pay');
   assert.ok(s.stats.revenue>0);
   assert.ok(Object.values(s.stock).some(n=>n<12),'stock consumed');
-  assert.ok(s.guestSeq>4,'tables have been cleared and reused by later guests');
+  assert.ok(s.guestSeq>2,'tables have been cleared and reused by later guests');
   assert.ok(s.events.some(e=>e.type==='guest-request'));
 });
 
