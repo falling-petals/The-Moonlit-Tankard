@@ -13,8 +13,10 @@ NAMES = {
     'customers-atlas': ['米娅', '诺亚', '艾琳', '林恩'],
     'furniture-atlas': ['方桌', '圆桌', '餐椅', '吧凳', '绿植', '球灯', '服务车', '酒柜', '酒头', '咖啡机', '原料箱', '冰柜', '酒桶', '沙发', '地毯', '招牌'],
     'items-atlas': ['琥珀麦酒', '青柠气泡', '晚安花茶', '咖啡', '啤酒花', '柑橘', '茶叶', '水', '谷物', '纸袋', '托盘', '金币', '声望', '好感', '笔记', '时钟'],
+    'event-atlas': ['买单客串正面', '买单客串行走一', '买单客串行走二', '买单客串背面', '全场买单账单', '派对入场券', '配方书', '灵感星光', '青柠特调', '琥珀特调', '派对特调', '花茶特调', '派对彩纸', '黑胶唱片', '金币爆发', '调饮杯'],
+    'drinks-atlas': ['琥珀麦酒', '青柠气泡', '晚安花茶', '炉火咖啡', '莓果冰露', '云顶可可', '秋苹果酒', '金蜜陈酿', '月影珍酿', '莓色极光', '薄荷青柠', '玫瑰晚安', '月酿琥珀', '月下花宴', '月蚀之冠', '丝绒浓咖'],
 }
-FILES = ['tavern-day', 'tavern-night', 'staff-atlas', 'customers-atlas', 'player-atlas', 'furniture-atlas', 'items-atlas', 'zone-studies']
+FILES = ['tavern-day', 'tavern-night', 'staff-atlas', 'customers-atlas', 'player-atlas', 'furniture-atlas', 'items-atlas', 'event-atlas', 'drinks-atlas', 'zone-studies']
 manifest = {'version': 1, 'world': {'width': 1536, 'height': 1024}, 'assets': {}}
 for name in FILES:
     path = ROOT/'assets'/'art'/(name+'.png')
@@ -31,6 +33,15 @@ for name in FILES:
                 for col in range(4):
                     x,y=round(col*im.width/4),round(row*im.height/4)
                     right,bottom=round((col+1)*im.width/4),round((row+1)*im.height/4)
+                    # The generated event sheet uses uneven row spacing: boots and
+                    # a book strap cross nominal quarter boundaries. Read complete
+                    # sprites from the transparent gaps, leaving the PNG untouched.
+                    if name == 'event-atlas':
+                        bands = [0, 365, 650, 940, im.height]
+                        y, bottom = bands[row], bands[row + 1]
+                    if name == 'drinks-atlas':
+                        bands = [0, 343, 630, 915, im.height]
+                        y, bottom = bands[row], bands[row + 1]
                     bbox=alpha.crop((x,y,right,bottom)).point(lambda a: 255 if a>40 else 0).getbbox()
                     assert bbox, f'{name} empty cell {col},{row}'
                     a,b,c,d=bbox
@@ -41,7 +52,7 @@ for name in FILES:
         manifest['assets'][name]=entry
 (ROOT/'assets'/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8')
 cards=[]
-labels=['日景空场','夜景空场','AI店员 · 4角色×4状态','顾客 · 4人物×4状态','人类店长 · 4方向×4状态','家具与设施 · 16件','饮品与物品 · 16件','四区场景参考']
+labels=['日景空场','夜景空场','AI店员 · 4角色×4状态','顾客 · 4人物×4状态','人类店长 · 4方向×4状态','家具与设施 · 16件','饮品与物品 · 16件','买单客串、配方与派对 · 16件','经营饮品与珍藏特调 · 16件','四区场景参考']
 for name,label in zip(FILES,labels):
     e=manifest['assets'][name]
     cards.append(f'<section><div class="title"><h2>{label}</h2><a href="art/{name}.png" target="_blank">查看原图 ↗</a></div><div class="art"><img src="art/{name}.png" alt="{label}"></div><p>{name}.png · {e["width"]} × {e["height"]} px'+(' · RGBA透明图集' if name.endswith('atlas') else '')+'</p></section>')

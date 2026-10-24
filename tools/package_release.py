@@ -10,7 +10,7 @@ def package(name,files):
         for p in unique:archive.write(p,p.relative_to(ROOT))
     print(f'{name}: {len(unique)} files, {(OUT/name).stat().st_size} bytes')
 
-game=[ROOT/p for p in ['index.html','style.css','package.json','start.cmd','README.md','tools/launch.py','docs/art-guide.md','docs/validation.md','docs/qa-report.json','docs/qa-review-report.json']]
+game=[ROOT/p for p in ['index.html','style.css','party.css','package.json','start.cmd','README.md','tools/launch.py','docs/art-guide.md','docs/validation.md','docs/qa-report.json','docs/qa-review-report.json','docs/qa-party-report.json','docs/qa-service-report.json','docs/qa-overlays-report.json']]
 game+=list((ROOT/'src').glob('*.js'))+list((ROOT/'assets').rglob('*'))
 game+=list((ROOT/'art-prototype'/'final').glob('*.json'))
 package('moonlit-tankard-mvp.zip',game)

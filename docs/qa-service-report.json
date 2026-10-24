@@ -1,0 +1,37 @@
+{
+  "checks": [
+    "fresh game starts with two usable tables",
+    "direct expansion charges 240 gold and unlocks a third table",
+    "management action leaves owner position and path unchanged",
+    "chef waits for real request confirmation without spending stock",
+    "one-click special request persists and extends patience",
+    "chef output waits at pass with one ingredient debit",
+    "player physically reaches visible pass to collect order",
+    "physical delivery pays requested order once",
+    "closing clears every guest order and work lock",
+    "reloading closed night does not pay receipts or wages twice",
+    "full real animation-loop day settles and clears patrons",
+    "all stock remains nonnegative under specialist service",
+    "real model reply streams into scene dialogue and persists",
+    "API key absent from ordinary saves",
+    "no browser runtime errors"
+  ],
+  "browserErrors": [],
+  "realAI": {
+    "model": "qwen-plus",
+    "calls": 1,
+    "elapsedSeconds": 1.03,
+    "partialUpdates": 17
+  },
+  "fullDay": {
+    "day": 1,
+    "revenue": 283,
+    "tips": 50,
+    "purchases": 0,
+    "wages": 66,
+    "served": 10,
+    "missed": 5,
+    "profit": 267,
+    "reputation": 4.24
+  }
+}

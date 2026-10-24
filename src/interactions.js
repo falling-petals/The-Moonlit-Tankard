@@ -1,9 +1,10 @@
 import {requestStaffReply,remember} from './ai.js';
-import {staffDefinition,gameClock,DRINKS} from './content.js';
+import {staffDefinition,gameClock,DRINKS,REQUESTS,ROLE_NAMES} from './content.js';
 import {log} from './engine.js';
+import {RECIPES,STRATEGIES,drinkInfo} from './progression.js';
 
 export function createInteractions({getState,getConfig,onUpdate,onError,requestReply=requestStaffReply,now=Date.now,delay=ms=>new Promise(resolve=>setTimeout(resolve,ms))}){
-  const status={busy:false,staff:null,connected:false,error:'',lastKind:'',lastReply:'',calls:0};
+  const status={busy:false,staff:null,connected:false,error:'',lastKind:'',lastReply:'',partial:'',phase:'',calls:0};
   let stateRef=getState(),generation=0,active=null,social=null,lastAuto=0,lastColleague=0,countDay=stateRef.day,autoCount=0;
   const seen=new Set(stateRef.events.map(e=>e.id));
   const notify=()=>onUpdate?.(status);
@@ -12,8 +13,8 @@ export function createInteractions({getState,getConfig,onUpdate,onError,requestR
   const eligible=(a,b)=>a&&b&&idle(a)&&idle(b)&&near(a,b);
   function abort(){
     generation++;active?.controller.abort();active=null;
-    if(social)for(const w of social.workers)w.socialUntil=0;
-    social=null;status.busy=false;status.staff=null;notify();
+    if(social)for(const w of social.workers){w.socialUntil=0;w.bubble='';w.bubbleUntil=0;}
+    social=null;status.busy=false;status.staff=null;status.partial='';status.phase='';notify();
   }
   function sync(){
     const s=getState();
@@ -27,23 +28,31 @@ export function createInteractions({getState,getConfig,onUpdate,onError,requestR
   async function perform(id,text,kind='player',extra={},session=null){
     const state=sync(),worker=state.staff.find(w=>w.id===id),config=getConfig();
     if(!worker)return null;
+    if(kind==='player'&&((active&&active.kind!=='player')||social))abort();
     if(active||(social&&social!==session)){if(kind==='player')onError?.('伙伴正在回应，稍等片刻。');return null;}
     if(!config.key){if(kind==='player')onError?.('请先在设置中连接大模型。');return null;}
     const token=generation,day=state.day;
     const valid=()=>generation===token&&getState()===state&&state.day===day&&state.staff.includes(worker);
     if(kind==='player'){worker.conversation.push({role:'player',text,time:gameClock(state.elapsed)});worker.conversation=worker.conversation.slice(-40);}
-    const request={controller:new AbortController()};active=request;
-    status.busy=true;status.staff=id;status.lastKind=kind;status.error='';notify();
-    const context={day:state.day,time:gameClock(state.elapsed),phase:state.phase,role:worker.role,
-      stock:state.stock,tables:state.tables.map(t=>({table:t.id,status:t.status,drink:t.order?DRINKS[t.order.drink]?.name:null})),
-      coworkers:state.staff.map(w=>staffDefinition(w.id).name),recentDialogue:worker.conversation.slice(-6),
-      owner:'店主是正在操作游戏的人类玩家，不是AI员工。',recentWork:state.logs.slice(-5).map(l=>l.text),...extra};
+    const request={controller:new AbortController(),kind};active=request;
+    status.busy=true;status.staff=id;status.lastKind=kind;status.error='';status.partial='';status.phase='requesting';notify();
+    const context=structuredClone({day:state.day,time:gameClock(state.elapsed),phase:state.phase,role:ROLE_NAMES[worker.role],gold:state.gold,
+      stock:state.stock,tables:state.tables.filter(t=>t.enabled!==false).map(t=>({table:t.id,status:t.status,drink:t.order?drinkInfo(state,t.order.drink)?.name:null,
+        patience:Math.max(0,Math.ceil(t.patience)),request:t.request?{...REQUESTS[t.request.id],fulfilled:t.request.fulfilled}:null})),
+      coworkers:state.staff.map(w=>({name:staffDefinition(w.id).name,role:ROLE_NAMES[w.role],job:w.job?.stage||'idle'})),recentDialogue:worker.conversation.slice(-6),
+      owner:'店主是正在操作游戏的人类玩家，不是AI员工。',recentWork:state.logs.slice(-5).map(l=>l.text),
+      progression:state.progression??null,recipe:RECIPES[state.progression?.equipped]??null,
+      strategy:STRATEGIES[state.progression?.strategy]??null,recentEvents:state.events.slice(-10),...extra});
     try{
-      const reply=await requestReply(config,{...staffDefinition(id),memories:worker.memories},context,text,{signal:request.controller.signal});
+      const reply=await requestReply(config,{...staffDefinition(id),memories:worker.memories},context,text,{signal:request.controller.signal,onPartial:partial=>{
+        if(!valid()||active!==request||request.controller.signal.aborted)return;
+        status.partial=String(partial).slice(0,360);status.phase='streaming';notify();
+      }});
       if(!valid())return null;
       // A remote reply may arrive after the people have walked away or the player opened a chat.
       if(session&&(!eligible(...session.workers)||state.paused||state.phase!=='open'))return null;
       if(kind==='guest'&&extra.table){const t=state.tables.find(t=>t.id===extra.table);if(!guestEligible(worker,t))return null;}
+      if(kind==='event'&&(!idle(worker)||!state.player||!near(worker,state.player)||state.paused||state.phase!=='open'))return null;
       const speech=kind==='player'?reply.speech:short(reply.speech);
       if(session)for(const w of session.workers)if(w!==worker){w.bubble='';w.bubbleUntil=0;}
       remember(worker,reply.memory);worker.bubble=speech;worker.bubbleUntil=now()+(kind==='player'?11000:3200);
@@ -55,7 +64,7 @@ export function createInteractions({getState,getConfig,onUpdate,onError,requestR
       if(!valid())return null;
       status.error=error.message;status.connected=false;if(kind==='player')onError?.(error.message);notify();return null;
     }finally{
-      if(active===request){active=null;status.busy=false;status.staff=null;notify();}
+      if(active===request){active=null;status.busy=false;status.staff=null;status.partial='';status.phase='';notify();}
     }
   }
   async function ask(id,text,kind='player',extra={}){return (await perform(id,text,kind,extra))!==null;}
@@ -81,19 +90,26 @@ export function createInteractions({getState,getConfig,onUpdate,onError,requestR
       if(social===session){for(const w of session.workers)w.socialUntil=0;social=null;notify();}
     }
   }
-  function guestEligible(w,t){return w&&t&&w.chatWith!=='player'&&['waiting','preparing','served'].includes(t.status)&&near(w,{x:t.x,y:t.y+100})&&(!t.worker||t.worker===w.id)&&(!w.job||w.job.table===t.id);}
+  function guestEligible(w,t){return w&&t&&w.chatWith!=='player'&&['waiting','preparing','ready','served'].includes(t.status)&&near(w,{x:t.x,y:t.y+100})&&(!t.worker||t.worker===w.id)&&(!w.job||w.job.table===t.id);}
   function tick(){
     const s=sync(),time=now(),config=getConfig();
     if(s.phase!=='open'||s.paused||!config.auto||!config.key)return;
     for(const event of s.events){
       if(seen.has(event.id))continue;
+      if(['recipe-drawn','combo-tier','party-started','cameo-started'].includes(event.type)){
+        if(active||social||time-lastAuto<20000||autoCount>=10)continue;
+        const w=s.staff.find(w=>idle(w)&&s.player&&near(w,s.player));if(!w)continue;
+        seen.add(event.id);lastAuto=time;autoCount++;
+        void ask(w.id,'结合刚刚实际发生的经营事件与今晚策略，对附近的店主自然说一句简短感想或建议，约30至50字。只描述状态里已有的事实，不宣称自己执行了交易或活动。','event',{event});
+        continue;
+      }
       if(event.type!=='guest-request'){seen.add(event.id);continue;}
       const table=s.tables.find(t=>t.id===event.table);
-      if(!table||!['waiting','preparing','served'].includes(table.status)){seen.add(event.id);continue;}
+      if(!table||!['waiting','preparing','ready','served'].includes(table.status)){seen.add(event.id);continue;}
       if(active||social||time-lastAuto<20000||autoCount>=10)continue;
       const w=s.staff.find(w=>guestEligible(w,table));if(!w)continue;
       seen.add(event.id);lastAuto=time;autoCount++;
-      void ask(w.id,`顾客在${event.table.slice(1)}号桌提出：“${event.text}”。菜单已点${DRINKS[event.drink]?.name}。作为现场服务店员自然回应一句，约40至60字。`,'guest',{request:event.text,table:event.table});
+      void ask(w.id,`顾客在${event.table.slice(1)}号桌提出：“${event.text}”。菜单已点${drinkInfo(s,event.drink)?.name}。作为现场服务店员自然回应一句，约20至40字。特殊需求只有fulfilled为true才已经落实；未落实时可提醒店主或表达听到要求，不要宣称已经处理。`,'guest',{request:event.text,table:event.table});
     }
     if(seen.size>500){seen.clear();for(const e of s.events)seen.add(e.id);}
     if(!active&&!social&&s.elapsed>100&&time-lastColleague>120000&&time-lastAuto>40000&&autoCount<9){

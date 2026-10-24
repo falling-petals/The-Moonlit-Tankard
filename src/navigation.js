@@ -14,7 +14,8 @@ export function navigationObstacles(options={}){
   let objects=options.obstacles;
   if(!Array.isArray(objects)){
     objects=[rect(490,205,560,125)];
-    for(const [x,y] of [[420,470],[1110,470],[420,705],[1110,705]]){
+    const tables=Array.isArray(options.tables)?options.tables.filter(t=>t.enabled!==false):[[420,470],[1110,470],[420,705],[1110,705]].map(([x,y])=>({x,y}));
+    for(const {x,y} of tables){
       objects.push(rect(x-75,y-75,150,120),rect(x-134,y-30,58,75),rect(x+76,y-30,58,75));
     }
   }
