@@ -57,3 +57,17 @@ test('taking over employee preparation reuses the already deducted ingredients',
   assert.equal(s.stock.ale,11);assert.ok(act(s,{type:'player-takeover',table:'t1'}).ok);
   run(s,45);assert.ok(s.player.carrying);assert.equal(s.stock.ale,11);assert.equal(s.stats.served,0);
 });
+test('walking away suspends preparation without refund and returning resumes the same work',()=>{
+  const s=createGame();order(s);act(s,{type:'player-work',table:'t1'});
+  for(let i=0;i<120&&s.player.job.stage!=='prepare';i++)advance(s,.25);
+  assert.equal(s.player.job.stage,'prepare');const remaining=s.player.job.remaining;
+  act(s,{type:'move-player',x:768,y:800});run(s,4);
+  assert.ok(s.player.job,'preparation reservation remains');assert.equal(s.player.job.suspended,true);
+  assert.equal(s.player.job.remaining,remaining);assert.equal(s.stock.ale,11);assert.equal(s.tables[0].worker,'player');
+  assert.equal(act(s,{type:'resume-player'}).ok,true);run(s,30);assert.ok(s.player.carrying);assert.equal(s.stock.ale,11);
+});
+test('timed out consumed manual order is not refunded when its reservation is gone',()=>{
+  const s=createGame();order(s);act(s,{type:'player-work',table:'t1'});run(s,22);
+  assert.equal(s.stock.ale,11);s.tables[0].patience=.1;run(s,.25);
+  assert.equal(s.player.job,null);assert.equal(s.stock.ale,11);act(s,{type:'cancel-player'});assert.equal(s.stock.ale,11);
+});

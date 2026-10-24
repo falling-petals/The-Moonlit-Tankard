@@ -8,6 +8,7 @@
   <title>月下酒馆 · The Moonlit Tankard</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2320372f'/%3E%3Cpath d='M44 47A23 23 0 0 1 28 9a20 20 0 1 0 16 38' fill='%23d9b878'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="party.css">
 </head>
 <body>
   <main id="stage" class="tavern-scene" aria-label="月下酒馆">
@@ -27,19 +28,25 @@
       <button class="hud-glass connection-button" data-action="panel" data-panel="settings" title="模型连接与游戏设置"><span id="ai-dot" class="status-dot offline"></span><span id="ai-status">AI 伙伴尚未连接</span><span data-icon="settings"></span></button>
     </div>
   </header>
+  <div id="combo-hud" class="combo-hud" aria-live="polite"><span class="combo-kicker">GOOD COMPANY · GOOD SERVICE</span><div><strong id="combo-count">0</strong><span>COMBO<small id="combo-effect">下一杯，开始连击</small></span></div><div class="combo-track"><i id="combo-time"></i></div></div>
+  <button id="inspiration-pill" class="inspiration-pill hud-glass" data-action="visit" data-panel="recipes" title="走近秘方手册"><span>✦</span><b id="inspiration">30</b><small>灵感 · 抽秘方</small></button>
+  <div id="night-status" class="night-status hud-glass"><button data-action="visit" data-panel="night"><span id="strategy-label">今晚 · 清爽快饮</span><small id="night-caption">开门前选路线，营业时冲连击</small></button><div id="live-event"></div></div>
   <div id="walk-hint" class="walk-hint">点击地面走动 <span>·</span> 点击人物或物件，自动走近互动</div>
   <footer class="scene-bottom">
     <div class="player-card hud-glass"><div class="player-heading"><span class="player-medallion" aria-hidden="true">店</span><div><strong id="player-status">店长 · 正在店里</strong><small id="player-task">点一处地面，慢慢走过去。</small></div></div><div id="carry-status" class="carry-status">双手空着</div></div>
     <nav class="visit-bar hud-glass" aria-label="走近酒馆设施">
       <button data-action="visit" data-panel="menu" title="走到菜单旁"><span data-icon="cup"></span><small>菜单</small></button>
+      <button data-action="visit" data-panel="recipes" title="走到秘方手册旁"><span data-icon="book"></span><small>秘方</small></button>
       <button data-action="visit" data-panel="staff" title="走到伙伴告示旁"><span data-icon="people"></span><small>伙伴</small></button>
       <button data-action="visit" data-panel="stock" title="走到原料柜旁"><span data-icon="box"></span><small>原料</small></button>
       <button data-action="visit" data-panel="upgrade" title="走到布置手册旁"><span data-icon="lamp"></span><small>布置</small></button>
-      <button data-action="visit" data-panel="events" title="走到活动手记旁"><span data-icon="book"></span><small>手记</small></button>
+      <button data-action="visit" data-panel="night" title="走到今晚营业计划旁"><span data-icon="lamp"></span><small>派对</small></button>
     </nav>
     <div class="scene-notes"><p id="latest-log">阳光落在窗边，第一天的故事就要开始。</p><span id="save-state">进度保存在这台设备</span></div>
   </footer>
   <div id="modal-root"></div><div id="dialogue-root" aria-live="polite"></div>
+  <div id="draw-root"></div><div id="event-banner" class="event-banner" role="status"></div>
+  <button id="sound-toggle" class="sound-toggle hud-glass" data-action="sound" aria-label="关闭音效" title="音效开关">♫</button>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <input type="file" id="import-file" accept="application/json,.json" hidden>
   <script type="module" src="src/app.js"></script>

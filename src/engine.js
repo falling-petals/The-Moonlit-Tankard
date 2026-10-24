@@ -1,5 +1,6 @@
 import {DAY_LENGTH,WORLD,DRINKS,STAFF,UPGRADES,TABLE_LAYOUT,staffDefinition} from './content.js';
 import {findPath,nearestWalkable,isWalkable} from './navigation.js';
+import {RECIPES,STRATEGIES,createProgression,drinkInfo} from './progression.js';
 
 export const STATIONS={inventory:{x:230,y:380},ledger:{x:590,y:355},hire:{x:1310,y:390},upgrades:{x:1110,y:355},events:{x:190,y:540}};
 export function createPlayer(){return {id:'player',x:768,y:800,path:[],direction:0,job:null,carrying:null,target:null,interaction:null,completed:0};}
@@ -15,12 +16,46 @@ export function createGame(){
     tables:TABLE_LAYOUT.map(t=>({...t,status:'empty',guest:null,order:null,worker:null,patience:0,eatTimer:0})),
     upgrades:{bar:0,ambience:0,cellar:0,plants:0},stats:freshStats(),summary:null,history:[],
     events:[],logs:[{id:'welcome',text:'阳光落在窗边，第一天的故事就要开始。',tone:'info'}],
-    eventSeq:0,rng:24681,arrivalIn:3,guestSeq:0,lastSettledDay:0,event:null};
+    eventSeq:0,rng:24681,arrivalIn:3,guestSeq:0,lastSettledDay:0,event:null,progression:createProgression()};
 }
 function random(s){s.rng=(Math.imul(s.rng,1664525)+1013904223)>>>0;return s.rng/4294967296;}
 export function emit(s,type,data={}){const e={id:`${s.day}-${++s.eventSeq}`,type,time:s.elapsed,...data};s.events.push(e);s.events=s.events.slice(-45);return e;}
 export function log(s,text,tone='info'){s.logs.push({id:`log-${s.day}-${++s.eventSeq}`,text,tone});s.logs=s.logs.slice(-35);}
 const point=(x,y)=>({x,y});
+const comboTier=count=>count>=10?10:count>=6?6:count>=3?3:0;
+function breakCombo(s){const c=s.progression.combo;c.count=0;c.tier=0;c.expiresAt=0;}
+function serviceCombo(s){
+  const c=s.progression.combo;if(c.count&&s.elapsed>c.expiresAt)breakCombo(s);
+  c.count++;c.best=Math.max(c.best,c.count);c.expiresAt=s.elapsed+55;c.tier=comboTier(c.count);
+  for(const [tier,reward] of [[3,3],[6,5],[10,8]])if(c.count>=tier&&!c.rewarded.includes(tier)){
+    c.rewarded.push(tier);s.progression.inspiration+=reward;emit(s,'combo-tier',{tier,count:c.count,amount:reward});
+  }
+  return c.tier===10?1.35:c.tier===6?1.2:c.tier===3?1.1:1;
+}
+function finishParty(s){
+  const p=s.progression.party;if(!['scheduled','active'].includes(p.status))return;
+  const completed=p.status==='active'&&s.elapsed>=p.endsAt;p.status='complete';
+  if(completed&&p.served>=3&&!p.rewarded){p.rewarded=true;s.progression.goals.party=true;s.progression.inspiration+=12;}
+  emit(s,'party-complete',{served:p.served,rewarded:p.rewarded});
+}
+function payCameo(s){
+  const c=s.progression.cameo;if(c.status!=='active'||c.paid)return;
+  c.status='complete';c.paid=true;s.gold+=c.pot;
+  if(c.orders)s.progression.inspiration+=6;
+  emit(s,'cameo-paid',{amount:c.pot,orders:c.orders});log(s,`黄仁勋结清全场饮品账单，共 ${c.pot} 金币。`,'success');
+}
+function updateProgression(s){
+  const p=s.progression;if(p.combo.count&&s.elapsed>p.combo.expiresAt)breakCombo(s);
+  if(p.party.status==='scheduled'&&s.elapsed>=p.party.startAt){p.party.status='active';s.arrivalIn=Math.min(s.arrivalIn,1);emit(s,'party-started');log(s,'月下派对开始了！在120秒内招待3桌，收获12灵感。','success');}
+  if(p.party.status==='active'&&s.elapsed>=p.party.endsAt)finishParty(s);
+  if(p.cameo.status==='waiting'&&s.elapsed>=p.cameo.startsAt){p.cameo.status='active';emit(s,'cameo-started');log(s,'黄仁勋来客串了：接下来60秒，所有顾客的饮品账单由他买单！','success');}
+  if(p.cameo.status==='active'&&s.elapsed>=p.cameo.endsAt)payCameo(s);
+}
+function arrivalInterval(s){
+  const c=s.progression.combo,flow=Math.min(1.35,c.tier===10?1.35:c.tier===6?1.2:c.tier===3?1.1:1);
+  const interval=(34+Math.floor(random(s)*9))/flow/(s.progression.party.status==='active'?1.6:1);
+  return Math.max(14,interval);
+}
 function aislePath(actor,target){
   const start=nearestWalkable(actor);if(start){actor.x=start.x;actor.y=start.y;}
   return findPath(actor,target);
@@ -48,7 +83,7 @@ function arrive(s){
 function leave(s,t,unhappy=false){
   t.status='leaving';t.worker=null;
   if(t.guest)t.guest.path=[point(t.x-105,t.y+105),point(768,t.y+105),point(768,900)];
-  if(unhappy){s.stats.missed++;s.reputation=Math.max(1,Math.round((s.reputation-.04)*100)/100);log(s,`${t.id.slice(1)} 桌等得有些久，离开了。`,'warning');}
+  if(unhappy){breakCombo(s);s.stats.missed++;s.reputation=Math.max(1,Math.round((s.reputation-.04)*100)/100);log(s,`${t.id.slice(1)} 桌等得有些久，离开了。`,'warning');}
 }
 function assignJob(s,w){
   const waiting=s.tables.filter(t=>t.status==='waiting'&&!t.worker&&t.order&&s.stock[t.order.drink]>=t.order.quantity);
@@ -61,7 +96,7 @@ function assignJob(s,w){
     w.job={kind:'clean',table:t.id,stage:'walk',remaining:4};w.path=aislePath(w,point(t.x,t.y+100));
   } else {
     s.stock[t.order.drink]-=t.order.quantity;t.status='preparing';
-    w.job={kind:'order',table:t.id,stage:'bar',remaining:DRINKS[t.order.drink].brew*(s.upgrades.bar?.75:1)*(w.role==='bar'?.85:1)};
+    w.job={kind:'order',table:t.id,stage:'bar',remaining:drinkInfo(s,t.order.drink).brew*(s.upgrades.bar?.75:1)*(w.role==='bar'?.85:1)};
     w.path=aislePath(w,{...WORLD.bar,x:WORLD.bar.x+s.staff.indexOf(w)*50});
   }
   if(w.priority===t.id)w.priority=null;
@@ -90,13 +125,17 @@ function finishClean(t,w){t.status='empty';t.guest=null;t.order=null;t.worker=nu
 function finishOrder(s,t,w){
   if(t.order&&!t.order.paid&&t.worker===w.id){
     t.order.paid=true;t.status='served';t.eatTimer=26;t.worker=null;
-    const base=DRINKS[t.order.drink].price*t.order.quantity;
-    const revenue=Math.round(base*(s.event==='tasting'?1.2:1));
-    const tip=(t.patience>70?2:0)+(s.upgrades.ambience?2:0);
-    s.gold+=revenue+tip;s.stats.revenue+=revenue;s.stats.tips+=tip;s.stats.served++;
+    const drink=drinkInfo(s,t.order.drink),base=drink.price*t.order.quantity,p=s.progression;
+    const revenue=Math.round(base*serviceCombo(s)*(p.party.status==='active'?1.35:1));
+    const tip=(t.patience>70?2:0)+(s.upgrades.ambience?2:0)+drink.tipModifier;
+    const deferred=p.cameo.status==='active'?Math.min(revenue,1000-p.cameo.pot):0;
+    if(p.cameo.status==='active'){p.cameo.pot+=deferred;p.cameo.orders++;}
+    if(p.party.status==='active')p.party.served++;
+    s.gold+=revenue-deferred+tip;s.stats.revenue+=revenue;s.stats.tips+=tip;s.stats.served++;
+    if(s.stats.served>=3&&!p.goals.served){p.goals.served=true;p.inspiration+=8;emit(s,'daily-goal',{goal:'served',amount:8});}
     s.reputation=Math.min(5,Math.round((s.reputation+.015)*1000)/1000);w.completed++;
-    emit(s,'served',{staff:w.id,table:t.id,drink:t.order.drink});
-    log(s,`${w.id==='player'?'你':staffDefinition(w.id).name}完成 ${t.id.slice(1).padStart(2,'0')} 桌订单，收入 ${revenue+tip} 金币。`,'success');w.job=null;
+    emit(s,'served',{staff:w.id,table:t.id,drink:t.order.drink,revenue,tip,amount:revenue+tip,deferred});
+    log(s,`${w.id==='player'?'你':staffDefinition(w.id).name}完成 ${t.id.slice(1).padStart(2,'0')} 桌订单，收入 ${revenue+tip} 金币${deferred?'，饮品记入全场待结账单':''}。`,'success');w.job=null;
   }
 }
 function releaseInteraction(s){s.player.interaction=null;s.player.target=null;for(const w of s.staff)if(w.chatWith==='player')w.chatWith=null;}
@@ -121,7 +160,7 @@ function updatePlayer(s,dt){
   const p=s.player,j=p.job,t=s.tables.find(t=>t.id===j?.table);
   if(j&&(!t||t.worker!=='player'||!['preparing','dirty'].includes(t.status))){cancelPlayer(s);return;}
   if(p.path.length&&!walk(p,dt,190))return;
-  if(j){
+  if(j&&!j.suspended){
     if(j.kind==='clean'){j.remaining-=dt;if(j.remaining<=0){finishClean(t,p);log(s,'你把桌面收拾干净，迎接下一位客人。','success');}return;}
     if(j.stage==='bar'){
       if(!j.consumed){
@@ -150,8 +189,9 @@ function updatePlayer(s,dt){
 }
 function tick(s,dt){
   s.elapsed=Math.min(DAY_LENGTH,s.elapsed+dt);
+  updateProgression(s);
   s.arrivalIn-=dt;
-  if(s.arrivalIn<=0&&s.elapsed<DAY_LENGTH-60){arrive(s);s.arrivalIn=s.event==='tasting'?25:34+Math.floor(random(s)*9);}
+  if(s.arrivalIn<=0&&s.elapsed<DAY_LENGTH-60){arrive(s);s.arrivalIn=arrivalInterval(s);}
   for(const t of s.tables){
     if(t.status==='arriving'&&walk(t.guest,dt,100)){
       t.status='waiting';emit(s,'guest-request',{table:t.id,drink:t.order.drink,variant:t.guest.variant,
@@ -173,6 +213,7 @@ export function advance(s,seconds){
 }
 function settle(s){
   if(s.lastSettledDay===s.day)return;
+  payCameo(s);finishParty(s);
   cancelPlayer(s);
   const wages=s.staff.reduce((n,w)=>n+staffDefinition(w.id).wage,0);
   const paidWages=Math.min(s.gold,wages);s.gold-=paidWages;s.stats.wages=paidWages;
@@ -185,19 +226,45 @@ function settle(s){
 export function act(s,a){
   const fail=message=>({ok:false,message}),ok=message=>({ok:true,message});
   switch(a.type){
+    case 'equip-recipe':{
+      if(s.phase!=='ready')return fail('开门前可以更换今夜招牌');
+      if(a.id!==null&&(!Object.hasOwn(RECIPES,a.id)||!s.progression.collection.includes(a.id)))return fail('尚未收录这张秘方');
+      s.progression.equipped=a.id;return ok(a.id?'今晚招牌已更换':'今晚使用原始配方');
+    }
+    case 'set-strategy':{
+      if(s.phase!=='ready')return fail('开门前可以更换营业路线');if(!Object.hasOwn(STRATEGIES,a.id))return fail('未知营业路线');
+      s.progression.strategy=a.id;return ok('今晚营业路线已确定');
+    }
+    case 'draw-recipe':{
+      const p=s.progression;if(p.inspiration<10)return fail('灵感不足，再招待几桌客人吧');
+      p.inspiration-=10;const roll=random(s),rarity=p.pity>=4?(roll<.75?'rare':'epic'):(roll<.6?'common':roll<.9?'rare':'epic');
+      const pool=Object.values(RECIPES).filter(r=>r.rarity===rarity),recipe=pool[Math.floor(random(s)*pool.length)];
+      const duplicate=p.collection.includes(recipe.id);if(duplicate)p.inspiration+=4;else p.collection.push(recipe.id);
+      p.draws++;p.pity=rarity==='common'?p.pity+1:0;p.lastDraw={id:recipe.id,duplicate,rarity};
+      emit(s,'recipe-drawn',{recipe:{...recipe},duplicate,rarity});log(s,`翻开秘方：${recipe.name}${duplicate?'，重复返还4灵感':''}。`,'success');
+      return {ok:true,message:duplicate?'已收录，返还4灵感':'新秘方已收录',recipe:{...recipe},duplicate,rarity};
+    }
     case 'move-player':{
       if(!Number.isFinite(a.x)||!Number.isFinite(a.y))return fail('请选择地面');
-      if(s.player.job&&!s.player.carrying)cancelPlayer(s);else {releaseInteraction(s);if(s.player.carrying)s.player.job.stage='carry';}
+      releaseInteraction(s);if(s.player.job)s.player.job.suspended=true;if(s.player.carrying)s.player.job.stage='carry';
       s.player.path=aislePath(s.player,{x:a.x,y:a.y});return ok('走到这里');
     }
     case 'interact':{
       const target=targetPoint(s,a.target);if(!target)return fail('这里暂时无法互动');
       if(s.player.carrying&&a.target.kind==='table'&&s.player.carrying.table===a.target.id)return act(s,{type:'player-deliver',table:a.target.id});
-      if(s.player.job&&!s.player.carrying)cancelPlayer(s);else {releaseInteraction(s);if(s.player.carrying)s.player.job.stage='carry';}
+      if(s.player.job?.suspended&&a.target.kind==='table'&&s.player.job.table===a.target.id)return act(s,{type:'resume-player'});
+      releaseInteraction(s);if(s.player.job)s.player.job.suspended=true;if(s.player.carrying)s.player.job.stage='carry';
       s.player.target={kind:a.target.kind,id:a.target.id};s.player.path=aislePath(s.player,approachPoint(s,a.target));return ok('走近看看');
     }
     case 'end-interaction':releaseInteraction(s);return ok('继续逛逛');
     case 'cancel-player':cancelPlayer(s);return ok('已放回原料，交给伙伴接手');
+    case 'resume-player':{
+      const p=s.player,j=p.job,t=s.tables.find(t=>t.id===j?.table);if(!j||!t||t.worker!=='player')return fail('当前没有暂停的工作');
+      if(p.carrying)return act(s,{type:'player-deliver',table:t.id});
+      releaseInteraction(s);j.suspended=false;
+      if(j.kind==='order'){j.stage='bar';p.path=aislePath(p,WORLD.bar);}else p.path=aislePath(p,{x:t.x,y:t.y+100});
+      return ok('回去继续刚才的工作');
+    }
     case 'player-takeover':{
       const t=s.tables.find(t=>t.id===a.table),w=s.staff.find(w=>w.id===t?.worker);
       if(s.phase!=='open'||s.player.job||!w?.job||w.job.kind!=='order'||!['bar','prepare'].includes(w.job.stage))return fail('伙伴已经端上饮品了，下一桌再来帮忙吧');
@@ -211,20 +278,21 @@ export function act(s,a){
       if(!t||t.worker||t.status!==(clean?'dirty':'waiting'))return fail('这桌已有伙伴照看，或暂时不需要服务');
       if(!clean&&s.stock[t.order.drink]<t.order.quantity)return fail('原料不足，先去补货吧');
       releaseInteraction(s);t.worker='player';
-      s.player.job={kind:clean?'clean':'order',table:t.id,stage:clean?'walk':'bar',remaining:clean?4:DRINKS[t.order.drink].brew*(s.upgrades.bar?.75:1),consumed:false};
+      s.player.job={kind:clean?'clean':'order',table:t.id,stage:clean?'walk':'bar',remaining:clean?4:drinkInfo(s,t.order.drink).brew*(s.upgrades.bar?.75:1),consumed:false,suspended:false};
       if(!clean)t.status='preparing';s.player.path=aislePath(s.player,clean?{x:t.x,y:t.y+100}:WORLD.bar);
       return ok(clean?'走过去收拾桌面':'去吧台亲手调一杯');
     }
     case 'player-deliver':{
       if(!s.player.carrying||s.player.carrying.table!==a.table)return fail('手里没有这桌的饮品');
       const t=s.tables.find(t=>t.id===a.table);if(!t||t.worker!=='player'||t.status!=='preparing')return fail('这桌订单已结束');
-      releaseInteraction(s);s.player.job.stage='deliver';s.player.path=aislePath(s.player,{x:t.x,y:t.y+100});return ok('把饮品端给客人');
+      releaseInteraction(s);s.player.job.suspended=false;s.player.job.stage='deliver';s.player.path=aislePath(s.player,{x:t.x,y:t.y+100});return ok('把饮品端给客人');
     }
     case 'open':if(s.phase!=='ready')return fail('已经开门了');if(!Object.values(s.menu).some(Boolean))return fail('至少需要一款在售饮品');s.phase='open';s.paused=false;log(s,'酒馆开门营业，第一位客人很快就到。','success');return ok('开始营业');
     case 'pause':if(s.phase!=='open')return fail('营业中可以暂停');s.paused=!s.paused;return ok(s.paused?'已暂停':'继续营业');
     case 'speed':if(![1,2,3].includes(a.value))return fail('不支持的速度');s.speed=a.value;return ok(`${a.value}倍速`);
     case 'close':if(s.phase!=='open')return fail('当前没有营业');settle(s);return ok('今日已结算');
     case 'next-day':if(s.phase!=='closed')return fail('请先完成今天的营业');s.day++;s.phase='ready';s.elapsed=0;s.summary=null;s.stats=freshStats();s.event=null;s.arrivalIn=3;s.events=[];
+      {const fresh=createProgression();for(const key of ['combo','party','cameo','goals'])s.progression[key]=fresh[key];}
       for(const t of s.tables){Object.assign(t,{status:'empty',guest:null,order:null,worker:null,patience:0});}
       s.player=createPlayer();for(const [i,w] of s.staff.entries()){Object.assign(w,{x:i?1060:WORLD.bar.x,y:i?365:WORLD.bar.y,path:[],job:null,priority:null,bubble:'',chatWith:null,socialUntil:0});}
       log(s,`第 ${s.day} 天，新的阳光照进来了。`);return ok('新的一天');
@@ -242,7 +310,12 @@ export function act(s,a){
     case 'assign':{const w=s.staff.find(w=>w.id===a.staff),t=s.tables.find(t=>t.id===a.table);if(!w||!t||t.status==='empty')return fail('请选择需要服务的桌子');w.priority=t.id;log(s,`${staffDefinition(w.id).name}会优先照看 ${t.id.slice(1)} 桌。`);return ok('已安排优先服务');}
     case 'menu':if(!DRINKS[a.drink])return fail('未知饮品');if(s.menu[a.drink]&&Object.values(s.menu).filter(Boolean).length===1)return fail('至少保留一款在售饮品');s.menu[a.drink]=!s.menu[a.drink];return ok('菜单已更新');
     case 'upgrade':{const u=UPGRADES[a.id];if(!u||s.upgrades[a.id])return fail('已升级或项目无效');if(s.gold<u.cost)return fail('金币不足');s.gold-=u.cost;s.upgrades[a.id]=1;log(s,`${u.name}已升级。`,'success');return ok('升级完成');}
-    case 'event':if(s.phase==='closed')return fail('明天再举办吧');if(s.event)return fail('今天已有活动');if(s.gold<60)return fail('金币不足');s.gold-=60;s.stats.purchases+=60;s.event='tasting';log(s,'今晚举办小小品饮会，客流与客单价提升。','success');return ok('品饮会已安排');
+    case 'event':case 'start-party':{
+      if(s.phase==='closed')return fail('明天再举办吧');if(s.progression.party.status!=='idle'||s.event)return fail('今天已经安排过派对');
+      if(s.phase==='open'&&DAY_LENGTH-s.elapsed<120)return fail('今天剩余时间不足120秒，明天再聚吧');if(s.gold<60)return fail('金币不足');
+      const p=s.progression.party;s.gold-=60;s.stats.purchases+=60;s.event='tasting';p.startAt=s.elapsed<=300?300:s.elapsed;p.endsAt=p.startAt+120;p.status='scheduled';
+      if(s.phase==='open')updateProgression(s);log(s,'月下派对已安排，活动期间招待3桌可获得12灵感。','success');return ok('月下派对已安排');
+    }
     default:return fail('未知操作');
   }
 }

@@ -29,3 +29,8 @@
 
 ## 2026-10-23 沉浸式更新
 全鼠标人类店长、全屏酒馆、近身小对话、自然员工交流和亲自服务已完成。新增店长图集后共8张PNG/80切片。46项JS、1项启动器、29项浏览器和8项审查补验通过。当前操作见README.md，详细验证见docs/validation.md。
+
+## 2026-10-23 Party Night Loop（进行中）
+用户授权执行秘方抽卡、两策略、连击/客流、派对和一次黄仁勋/玉米客串；主线暂缓。计划：docs/superpowers/plans/2026-10-23-party-night-loop.md。复用纯前端、真实AI、原角色，分支feat/party-night-loop。
+用户修正（2026-10-24）：黄仁勋为全体顾客买单客串；去掉全部玉米元素。
+Party Night Loop完成：80 JS +2 Python +39新浏览器检查通过，主线仍暂缓。图集坐标按真实行距修正，黄仁勋全场代付无玉米。入口、玩法和报告见README.md及docs/validation.md。

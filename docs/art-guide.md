@@ -13,6 +13,7 @@
 | staff-atlas.png | 4名原创AI店员 | 4列×4行；列为人物，行为待机、步态1、步态2、背面 |
 | customers-atlas.png | 4种普通像素顾客 | 同上，顾客行为由规则驱动 |
 | player-atlas.png | 玩家控制的人类店长 | 4列为正/背/左/右，4行为待机/步态1/步态2/端托盘 |
+| event-atlas.png | 全场买单客串与活动物件 | 第1行黄仁勋4状态；第2行账单/票/秘方/灵感；第3行饮品变体；第4行彩纸/唱片/金币/空杯 |
 | furniture-atlas.png | 桌椅、植物、服务设施 | 4列×4行，透明底 |
 | items-atlas.png | 饮品、原料、金币及状态图标 | 4列×4行，透明底 |
 | zone-studies.png | 大厅、吧台、后厨、地窖的现代方向图 | 开发参考，不当作寻路数据 |
@@ -42,4 +43,8 @@
 
 完整生成提示词见 art-prototype/final/generation-prompts.json。使用内置image_gen生成，无额外图像API费用配置。
 
-人类店长的独立生成提示词见 art-prototype/final/owner-generation-prompt.json。所有PNG保留原图；图集共5张、80个透明源矩形。
+人类店长的独立生成提示词见 art-prototype/final/owner-generation-prompt.json；客串和活动图集的完整提示词见 art-prototype/final/party-generation-prompt.json。均使用内置image_gen并保留原图；图集共6张、96个透明源矩形，总计9张源PNG。
+
+客串为轻松虚构演出，黄仁勋使用银发、眼镜和黑皮衣造型，展示买单账单。派对以局部珊瑚/青色灯光、唱片和彩纸体现，未替换用户已选的昼夜底图。金币和连击粒子有数量上限，开启减少动态效果时停用粒子和连续动态。声音由本地WebAudio产生，首次鼠标操作后才解锁，右下角可静音。
+
+event-atlas的实际生成行距不完全等分。构建脚本按透明行间隔读取0–365、365–650、650–940、940–1254四个源区，完整保留鞋底并排除邻行碎片；PNG本身未修改。使用manifest中的cell/rect坐标，不要重新按四等分裁图。
