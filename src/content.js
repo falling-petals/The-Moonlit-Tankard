@@ -41,3 +41,16 @@ TABLE_LAYOUT.push({id:'t5',x:765,y:470,shape:0},{id:'t6',x:765,y:705,shape:1});
 export const CUSTOMER_NAMES=['米娅','诺亚','艾琳','林恩'];
 export function staffDefinition(id){return STAFF.find(x=>x.id===id);}
 export function gameClock(elapsed){const minutes=12*60+Math.floor(elapsed/DAY_LENGTH*12*60);return `${String(Math.floor(minutes/60)%24).padStart(2,'0')}:${String(minutes%60).padStart(2,'0')}`;}
+// 口碑换成星。4.2 是街坊早给的底子，后面三颗要自己挣，一晚最多点亮一颗。
+export const STAR_BASE=2;
+export const STAR_STEPS=[
+  {star:3,rep:4.5,id:'cellar',name:'有人愿意等',opens:'地窖'},
+  {star:4,rep:4.8,id:'regulars',name:'常客的名字',opens:'熟客的记忆'},
+  {star:5,rep:5,id:'moonlit',name:'月烛',opens:'这一夜的收束'}
+];
+export function starTier(rep){let n=STAR_BASE;for(const step of STAR_STEPS)if(rep>=step.rep)n=step.star;return n;}
+// 地窖：酒在桶里睡一夜才变好。占着桶位、也占着本可以今晚卖掉的库存。
+export const CELLAR={maxLevel:3,perCask:6,baseSlots:2,extraSlots:2,priceStep:.18,tipStep:1};
+export const cellarSlots=s=>CELLAR.baseSlots+(s?.upgrades?.cellar?CELLAR.extraSlots:0);
+export const caskBonus=level=>1+CELLAR.priceStep*(level||0);
+export const caskPercent=level=>Math.round(CELLAR.priceStep*100*(level||0));

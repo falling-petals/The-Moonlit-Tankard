@@ -1,5 +1,5 @@
-import {createGame,advance,act,STATIONS} from './engine.js';
-import {DRINKS,ROLE_NAMES,staffDefinition,gameClock,DAY_LENGTH,TABLE_COSTS,REQUESTS} from './content.js';
+import {createGame,advance,act,STATIONS,cellarOpen} from './engine.js';
+import {DRINKS,ROLE_NAMES,staffDefinition,gameClock,DAY_LENGTH,TABLE_COSTS,REQUESTS,STAR_STEPS} from './content.js';
 import {loadGame,parseGame,publicSave,SAVE_KEY} from './storage.js';
 import {DEFAULT_CONFIG,consumeBootstrap} from './ai.js';
 import {createInteractions} from './interactions.js';
@@ -8,6 +8,9 @@ import {createAudio} from './audio.js';
 import {RECIPES,STRATEGIES,drinkInfo} from './progression.js';
 import {recipesView,nightView,drawReveal,liveProgress,drinksView} from './party-views.js';
 import * as view from './views.js';
+import {introMode,playIntro} from './intro.js';
+import {mountGuide} from './tutorial.js';
+import {createCellarUI} from './cellar.js';
 const $=selector=>document.querySelector(selector);
 const read=(storage,key)=>{try{return storage.getItem(key);}catch{return null;}};
 const parse=raw=>{try{return JSON.parse(raw)||{};}catch{return {};}};
@@ -17,6 +20,7 @@ let config={...DEFAULT_CONFIG,...parse(read(localStorage,'moonlit-preferences'))
 const bootstrap=consumeBootstrap(location,history);if(bootstrap)config={...config,...bootstrap};
 write(sessionStorage,'moonlit-ai-session',JSON.stringify(config));
 let renderer=null,modalState=null,lighting='auto',toastTimer=null,summaryShown=0,shownInteraction='',hotspotSignature='',pendingVisit=null,panelStamp='',bannerTimer=null;
+let introActive=false,cellarActive=false,previous=performance.now(),loopStarted=false,guide=null,cellar=null;
 const audio=createAudio();audio.setMuted(read(localStorage,'moonlit-muted')==='1');
 const seenEvents=new Set(state.events.map(e=>e.id));
 const panelStations={menu:'ledger',recipes:'ledger',night:'events',staff:'hire',stock:'inventory',upgrade:'upgrades',events:'events'};
@@ -74,10 +78,11 @@ function positionContext(){
 }
 function openPanel(panel,id=null){
   if(panel==='chat'){openChat(id);return;}if(modalState?.panel==='chat')closeModal();closeModal({release:false});modalState={panel,id};
-  const views={menu:drinksView,recipes:recipesView,night:nightView,stock:view.stockView,staff:view.staffView,upgrade:view.upgradeView,events:view.eventsView,summary:view.summaryView};let html=views[panel]?.(state)||'';
+  const views={menu:drinksView,recipes:recipesView,night:nightView,stock:view.stockView,staff:view.staffView,upgrade:view.upgradeView,events:view.eventsView,summary:view.summaryView,fame:view.fameView};let html=views[panel]?.(state)||'';
   if(panel==='settings')html=view.settingsView(config,ai.status);if(panel==='table')html=tablePanel(id);
+  if(panel==='milestone'){const step=STAR_STEPS.find(v=>v.id===state.pendingMilestone);if(step)html=view.milestoneView(step);}
   if(panel==='close')html=view.modal({title:'今天，先到这里吗？',subtitle:'未完成的订单会结束，库存留到明天。',body:`<p class="muted">今天招待了 ${state.stats.served} 桌，收入 ${state.stats.revenue+state.stats.tips} G。</p>`,footer:'<button class="text-button" data-action="close-modal">再忙一会儿</button><button class="primary-button" data-action="confirm-close">确认打烊</button>'});
-  if(panel==='reset')html=view.modal({title:'从第一杯重新开始？',subtitle:'将覆盖这台设备的经营进度。',body:'<p class="muted">可以先导出存档留念。</p>',footer:'<button class="outline-button" data-action="export">导出存档</button><button class="primary-button" data-action="reset">确认重新开始</button>'});
+  if(panel==='reset')html=view.modal({title:'从第一杯重新开始？',subtitle:'将覆盖这台设备的经营进度，新手引导和开场邀请函也会跟着重来。',body:'<p class="muted">可以先导出存档留念。</p>',footer:'<button class="outline-button" data-action="export">导出存档</button><button class="primary-button" data-action="reset">确认重新开始</button>'});
   if(panel==='table'){$('#dialogue-root').innerHTML=html;renderer?.paint($('#dialogue-root'));positionContext();panelStamp=progressPanelStamp();return;}
   $('#modal-root').innerHTML=html;const sheet=$('#modal-root .modal');if(sheet)sheet.dataset.panel=panel;
   if(['menu','recipes','staff','stock','upgrade','night'].includes(panel))$('#modal-root .modal-header').insertAdjacentHTML('afterend',`<nav class="modal-tabs" aria-label="管理分类">${Object.entries({menu:'菜单',recipes:'秘方',staff:'伙伴',stock:'原料',upgrade:'扩建',night:'今夜'}).map(([id,label])=>`<button data-action="visit" data-panel="${id}" class="${panel===id?'active':''}">${label}</button>`).join('')}</nav>`);
@@ -129,6 +134,10 @@ function renderProgress(){
 }
 function renderUI(){
   $('#gold').textContent=state.gold.toLocaleString('zh-CN');$('#reputation').textContent=state.reputation.toFixed(2);$('#day').textContent=String(state.day).padStart(2,'0');
+  const stars=state.stars??2,starRow=$('#star-row');
+  if(starRow.dataset.stars!==String(stars)){starRow.dataset.stars=String(stars);starRow.innerHTML=view.starsHtml(stars);}
+  const unlocked=cellarOpen(state),cellarButton=$('#cellar-button');
+  if(cellarButton.hidden===unlocked)cellarButton.hidden=!unlocked;
   $('#clock').textContent=gameClock(state.elapsed);$('#clock-caption').textContent=state.phase==='ready'?'准备营业':state.phase==='closed'?'今日已打烊':state.paused?'暂停片刻':'营业中';$('#day-progress').style.width=state.elapsed/DAY_LENGTH*100+'%';
   const night=lighting==='night'||(lighting==='auto'&&state.elapsed>290);$('#phase-label').textContent=state.phase==='ready'?'准备开门':state.phase==='closed'?'今日打烊':state.paused?'暂停片刻':night?'雨夜营业':'午后营业';
   $('#weather').textContent=night?'雨 · 微凉':'晴 · 暖阳';$('#lighting-label').textContent=lighting==='auto'?'自然光':lighting==='day'?'日景':'夜景';$('#lighting-button [data-icon]').innerHTML=view.icon(night?'moon':'sun');
@@ -143,6 +152,7 @@ function renderUI(){
   if(key&&key!==shownInteraction){shownInteraction=key;if(interaction.kind==='staff')openChat(interaction.id);else if(interaction.kind==='table')openPanel('table',interaction.id);else {const panel=pendingVisit||stationPanels[interaction.id];pendingVisit=null;openPanel(panel);}}if(!key)shownInteraction='';
   $('#walk-hint').hidden=state.elapsed>25||!!p.path.length||!!modalState;renderAI();refreshChat();renderProgress();audio.update(state);
   if(state.phase==='closed'&&state.summary&&summaryShown!==state.day){summaryShown=state.day;openPanel('summary');save();}
+  guide?.update(state);
 }
 function renderHotspots(){
   // The scene itself provides hit targets; contextual hints belong on hover.
@@ -163,6 +173,7 @@ async function sendChat(text){
 function exportSave(){const blob=new Blob([publicSave(state)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`月下酒馆-第${state.day}天.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('存档已导出。');}
 async function clickAction(button){const d=button.dataset;switch(d.action){
   case 'visit':visit(d.panel);return;
+  case 'cellar-open':if(!cellarOpen(state)){toast('地窖还锁着 —— 等第三颗星亮起来。',true);return;}closeModal();cellar?.show();return;
   case 'panel':if(d.panel==='settings')openPanel('settings');else visit(d.panel);return;
   case 'world-target':approach({kind:d.kind,id:d.id});return;
   case 'close-modal':case 'continue-work':closeModal();save();renderUI();return;
@@ -191,13 +202,29 @@ async function clickAction(button){const d=button.dataset;switch(d.action){
   case 'resume-player':{const r=perform({type:'resume-player'},{refresh:false});if(r.ok)closeModal({release:false});return;}
   case 'cancel-player':perform({type:d.action},{refresh:false});closeModal();return;
   case 'quick-chat':await sendChat(d.message);return;
-  case 'next-day':perform({type:'next-day'},{refresh:false});lighting='auto';closeModal();return;
+  case 'next-day':perform({type:'next-day'},{refresh:false});lighting='auto';closeModal();
+    if(state.pendingMilestone)openPanel('milestone');
+    return;
+  case 'close-milestone':state.pendingMilestone=null;save();closeModal();renderUI();return;
   case 'save-settings':{const next=settingsFromForm();if(next){storeConfig(next);$('#connection-result').textContent='连接设置已保存。';toast('设置已保存。');}return;}
   case 'test-connection':{if(ai.status.busy){toast('伙伴正在回应，稍等片刻。');return;}const next=settingsFromForm();if(!next)return;storeConfig(next);const el=$('#connection-result');el.textContent='正在请求真实模型…';button.disabled=true;const ok=await ai.ask(state.staff[0].id,'请用一句简短中文向人类店主问好，无需记忆。','test');if(el.isConnected){el.textContent=ok?'连接成功 · '+ai.status.lastReply:ai.status.error;el.className='connection-result'+(ok?'':' error');button.disabled=false;}return;}
   case 'export':exportSave();return;
   case 'import':$('#import-file').click();return;
   case 'reset-confirm':openPanel('reset');return;
-  case 'reset':ai.abort();state=createGame();summaryShown=0;lighting='auto';shownInteraction='';hotspotSignature='';seenEvents.clear();$('#draw-root').innerHTML='';closeModal();save();renderUI();return;
+  case 'replay-intro':closeModal();introActive=true;void playIntro({mode:'full'}).finally(()=>{introActive=false;previous=performance.now();renderUI();});return;
+  case 'reset-guide':guide?.reset();closeModal();renderUI();toast('新手引导已重新开始。');return;
+  case 'reset':{
+    // 重开一档 = 新玩家：存档、引导、开场邀请函一起回到原点，直接重播完整序章。
+    ai.abort();state=createGame();summaryShown=0;lighting='auto';shownInteraction='';hotspotSignature='';
+    seenEvents.clear();$('#draw-root').innerHTML='';
+    guide?.reset(1);
+    try{localStorage.removeItem('moonlit-invitation-v1');}catch{}
+    closeModal();save();renderUI();
+    const back=()=>{introActive=false;previous=performance.now();renderUI();};
+    introActive=true;
+    void playIntro({mode:'full',onReveal:back}).finally(back);
+    return;
+  }
 }}
 document.addEventListener('click',event=>{const b=event.target.closest('[data-action]');if(b&&!b.disabled)void clickAction(b).catch(()=>toast('操作未完成，请重试。',true));});
 document.addEventListener('click',event=>{if(event.target.classList.contains('modal-backdrop'))closeModal();});
@@ -207,9 +234,24 @@ document.addEventListener('change',event=>{if(event.target.matches('[data-staff-
 document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeModal();$('#draw-root').innerHTML='';}if(event.target.id==='chat-input'&&event.key==='Enter'&&!event.shiftKey){event.preventDefault();void sendChat(event.target.value);}});
 $('#import-file').addEventListener('change',async event=>{const file=event.target.files[0];if(!file)return;try{if(file.size>2_000_000)throw new Error();const next=parseGame(await file.text());ai.abort();state=next;summaryShown=0;shownInteraction='';hotspotSignature='';closeModal();save();renderUI();toast('存档已恢复。');}catch{toast('存档无效，现有进度已保留。',true);}finally{event.target.value='';}});
 $('#world').addEventListener('click',event=>{if(!renderer)return;const hit=renderer.hitTest(event.clientX,event.clientY);if(!hit)return;if(hit.type==='ground'){closeModal();perform({type:'move-player',x:hit.x,y:hit.y},{refresh:false,notify:false});}else if(['guest','service'].includes(hit.type))approach({kind:'table',id:hit.id});else approach({kind:hit.type,id:hit.id});});
+// 序章要先占住 introActive：不然引导卡片会抢先渲染一次并把"已展示"记下来。
+const introPending=introMode()||null;
+if(introPending){introActive=true;}
 view.fillIcons();renderUI();save();
-try{renderer=await createRenderer($('#world'));$('#loading').remove();renderer.paint();renderUI();let previous=performance.now(),lastDraw=0,lastUI=0,lastSave=0,lastAI=0;
-  function loop(time){const dt=Math.min(.25,Math.max(0,(time-previous)/1000));previous=time;advance(state,dt);if(time-lastDraw>30){renderer.draw(state,time,lighting);renderHotspots();lastDraw=time;}if(time-lastUI>200){renderUI();lastUI=time;}if(time-lastSave>2000){save();lastSave=time;}if(time-lastAI>750){ai.tick();lastAI=time;}requestAnimationFrame(loop);}
-  document.addEventListener('visibilitychange',()=>{previous=performance.now();save();});requestAnimationFrame(loop);
+try{renderer=await createRenderer($('#world'));$('#loading').remove();renderer.paint();guide=mountGuide({project:point=>renderer.project(point),paint:node=>renderer.paint(node),blocked:()=>introActive||cellarActive,aiReady:()=>!!config.key});
+  cellar=createCellarUI({
+    getState:()=>state,getRenderer:()=>renderer,
+    act:action=>{const result=act(state,action);save();return result;},
+    onChange:result=>{toast(result.message,!result.ok);renderUI();},
+    onOpen:()=>{cellarActive=true;},
+    onClose:()=>{cellarActive=false;previous=performance.now();renderUI();}
+  });
+  renderUI();let lastDraw=0,lastUI=0,lastSave=0,lastAI=0;
+  function loop(time){const dt=Math.min(.25,Math.max(0,(time-previous)/1000));previous=time;if(!introActive&&!cellarActive)advance(state,dt);if(time-lastDraw>30){renderer.draw(state,time,lighting);renderHotspots();lastDraw=time;}if(time-lastUI>200){renderUI();lastUI=time;}if(time-lastSave>2000){save();lastSave=time;}if(time-lastAI>750){ai.tick();lastAI=time;}requestAnimationFrame(loop);}
+  function startLoop(){if(loopStarted)return;loopStarted=true;previous=performance.now();requestAnimationFrame(loop);}
+  document.addEventListener('visibilitychange',()=>{previous=performance.now();save();});
+  const mode=introPending;
+  if(mode){try{await playIntro({mode,onReveal:()=>{introActive=false;startLoop();}});}catch{}introActive=false;startLoop();}
+  else startLoop();
 }catch{const loading=$('#loading');if(loading)loading.innerHTML='<div class="error-panel">场景资源未能载入。请使用 start.cmd 启动，再刷新页面。</div>';toast('美术资源读取失败。',true);}
 window.addEventListener('pagehide',save);

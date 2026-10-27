@@ -1,0 +1,154 @@
+@charset "UTF-8";
+/* 地窖：游戏里的第二个房间。拱、石墙、一排桶，就是它的全部内容。 */
+#cellar-root{position:fixed;inset:0;z-index:120;pointer-events:none}
+#cellar-root:empty{display:none}
+
+.cellar{pointer-events:auto;position:absolute;inset:0;isolation:isolate;display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  color:#f3e7d3;font-family:var(--font);opacity:0;transform:scale(1.012);
+  transition:opacity .34s ease,transform .46s cubic-bezier(.22,.7,.24,1);
+  background:#0e0a07;box-shadow:inset 0 0 190px 56px #000000b8}
+/* 两盏壁灯的光：用 CSS 画，SVG 里的径向渐变会在圆的边界留一道痕 */
+.cellar::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(240px 260px at 6% 36%,#ffd79a1a,#ffd79a00 72%),
+             radial-gradient(240px 260px at 94% 36%,#ffd79a1a,#ffd79a00 72%)}
+.cellar.is-in{opacity:1;transform:none}
+.cellar.is-leaving{opacity:0;transform:scale(1.006);transition:opacity .22s ease}
+/* 房间本身是画出来的：砖缝、壁灯、地面。 */
+.cellar-room{position:absolute;inset:0;display:block;width:100%;height:100%;z-index:0;pointer-events:none}
+/* 头顶那盏灯：绳、灯罩、一束光。没有它，屋子就只有上半截是空的 */
+.cellar-lamp{position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:1;width:1px;height:130px;pointer-events:none}
+.cellar-lamp::before{content:"";position:absolute;left:50%;top:0;width:1px;height:98px;background:linear-gradient(180deg,#00000000,#9a7c5059)}
+.cellar-lamp::after{content:"";position:absolute;left:50%;top:92px;transform:translateX(-50%);width:40px;height:24px;
+  clip-path:polygon(16% 0,84% 0,100% 100%,0 100%);
+  background:linear-gradient(180deg,#f7d79b,#8d6026);
+  box-shadow:0 0 40px 14px #f0b96a26}
+.cellar-lamp i{position:absolute;left:50%;top:114px;transform:translateX(-50%);width:440px;height:300px;
+  clip-path:polygon(48% 0,52% 0,100% 100%,0 100%);
+  background:linear-gradient(180deg,#f7cd8c11,#f7cd8c00 72%)}
+
+.cellar-head{position:relative;z-index:2;display:flex;justify-content:space-between;align-items:flex-end;gap:22px;
+  padding:clamp(18px,3.6vh,38px) clamp(20px,4.6vw,58px) 0}
+.cellar-head>div{padding-left:15px;border-left:2px solid #c9a46659}
+.cellar-kicker{font-size:11px;letter-spacing:.26em;color:#c3a377;text-shadow:0 1px 6px #000000cc}
+.cellar-head h2{font-family:"Kaiti SC","KaiTi","楷体","STKaiti",serif;font-size:clamp(30px,3.1vw,42px);font-weight:500;
+  letter-spacing:.18em;line-height:1.16;margin-top:5px;text-shadow:0 4px 22px #000000cc}
+.cellar-sub{font-size:12px;color:#b09a80;margin-top:6px;letter-spacing:.04em;text-shadow:0 1px 8px #000000cc}
+.cellar-exit{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:8px 16px;border-radius:9px;
+  font-size:12px;color:#e8d5b6;background:#ffffff0d;border:1px solid #ffffff1f;transition:background .18s,color .18s}
+.cellar-exit:hover{background:#ffffff1a;color:#fff2da}
+
+.cellar-body{position:relative;z-index:2;display:grid;align-content:center;min-height:0;overflow:auto;
+  grid-template-columns:minmax(0,1fr) clamp(244px,24vw,300px);gap:clamp(14px,2.6vw,32px);
+  padding:clamp(12px,2.4vh,26px) clamp(20px,4.6vw,58px) clamp(6px,1.4vh,14px);scrollbar-width:thin}
+
+/* 酒架：一排桶躺着，每个桶下面挂一块木牌 */
+.cellar-rack{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:end;justify-items:center;
+  gap:clamp(4px,1.1vw,18px);align-content:center}
+.cask{display:grid;grid-template-rows:minmax(0,1fr) auto 29px;justify-items:center;align-items:end;
+  gap:7px;width:100%;min-width:0}
+.cask-art{position:relative;display:grid;place-items:stretch;width:100%;height:220px}
+.cask-art canvas{position:absolute;width:280px!important;height:280px!important;
+  filter:drop-shadow(0 14px 18px #000000c4)}
+/* 桶底下那块木板：桶是躺在架子上，不是浮着 */
+.cask-art::after{content:"";position:absolute;left:-9%;right:-9%;bottom:3px;height:9px;border-radius:2px;
+  background:linear-gradient(180deg,#755732,#2f210f);box-shadow:0 6px 14px #000000b3,inset 0 1px #b08b4f59}
+.cask-art canvas.ghost{opacity:.1;filter:grayscale(1)}
+.cask-mark{position:relative;display:grid;place-items:center;width:100%;height:auto;margin-bottom:13px;border-radius:10px;
+  border:1px dashed #ffffff38;background:#ffffff05;font-size:12px;letter-spacing:.16em;color:#9a8569}
+.cask.empty .cask-mark{font-size:26px;letter-spacing:0;color:#d3af70;border-color:#c9a46666;background:#c9a46612}
+.cask.locked{opacity:.92}
+/* 没凿开的地方就是墙：石块砌着，暗在背景里 */
+.cask.locked .cask-mark{border:1px solid #ffffff0a;
+  background:repeating-linear-gradient(0deg,#2b1f15 0 21px,#1b1310 21px 23px),
+             repeating-linear-gradient(90deg,#2b1f15 0 39px,#1b1310 39px 41px);
+  box-shadow:inset 0 0 44px 14px #00000094}
+.cask.empty .cask-art::after{opacity:1}
+.cask.locked .cask-art::after{opacity:.8}
+
+.cask-plate{position:relative;display:grid;justify-items:center;gap:2px;width:100%;max-width:198px;
+  padding:8px 10px 9px;border-radius:8px;text-align:center;
+  background:linear-gradient(180deg,#4d3822 0%,#2e2013 100%);
+  border:1px solid #6d523266;box-shadow:inset 0 1px #b08b4f2e,0 8px 18px #0000004d}
+/* 木牌是挂在桶上的：一根细钉 */
+.cask-plate::before{content:"";position:absolute;top:-8px;left:50%;width:1px;height:8px;background:#9c8050b8}
+.cask.empty .cask-plate,.cask.locked .cask-plate{background:#ffffff08;border-color:#ffffff22;box-shadow:none}
+.cask.empty .cask-plate::before,.cask.locked .cask-plate::before{display:none}
+.cask h4{font-size:14px;font-weight:500;letter-spacing:.02em;line-height:1.4}
+.cask.locked h4,.cask.locked .cask-meta{color:#c2ac90}
+.cask.empty .cask-meta{color:#c0a788}
+.cask-meta{font-size:11px;color:#ab9780;line-height:1.5}
+.cask-level{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:2px}
+.cask-level small{font-size:10px;color:#9d8a72;letter-spacing:.04em}
+.cask-pips{display:inline-flex;gap:3px}
+.cask-pips i{width:6px;height:6px;border-radius:50%;background:#ffffff1f}
+.cask-pips i.on{background:#e2b86f;box-shadow:0 0 9px #e2b86f8c}
+.cask>.primary-button,.cask>.outline-button{min-height:29px;padding:5px 12px;font-size:11.5px;border-radius:7px}
+.cask-none{display:block;height:29px}
+.cask .primary-button{background:#d7a357;color:#2c231b;border:1px solid #c68f43}
+.cask .outline-button{background:#e0b37217;border:1px solid #d7ab6a4d;color:#efd9b5}
+.cask .outline-button:hover{background:#e0b3722e;color:#fff1d9}
+
+.cellar-panel{align-self:center;padding:18px 19px 20px;border-radius:12px;border:1px solid #ffffff17;
+  background:#170f0ad9;backdrop-filter:blur(10px);box-shadow:0 18px 40px #0000005c}
+.cellar-panel h3{font-size:12px;font-weight:500;letter-spacing:.16em;color:#d6ba8f;margin-bottom:12px}
+.cellar-note{font-size:12px;line-height:1.9;color:#a5917a}
+.vintage-list{display:grid;gap:8px;list-style:none}
+.vintage-list li{display:grid;gap:2px;padding:9px 11px;border-radius:9px;background:#ffffff0a;border:1px solid #ffffff12;font-size:13px}
+.vintage-list small{font-size:11px;color:#a89278}
+.cellar-rule{margin-top:15px;padding-top:13px;border-top:1px solid #ffffff14;display:grid;gap:6px;font-size:11px;line-height:1.8;color:#8e7b67}
+.cellar-rule p::before{content:"· ";color:#c9a466}
+.cask-picks{display:grid;gap:6px;list-style:none;max-height:min(42vh,320px);overflow:auto;scrollbar-width:thin}
+.cask-picks button{display:grid;gap:2px;width:100%;text-align:left;padding:9px 11px;border-radius:8px;
+  background:#ffffff0a;border:1px solid #ffffff16;color:#efe1cb;transition:background .16s,border-color .16s}
+.cask-picks button:hover{background:#ffffff15;border-color:#c9a46666}
+.cask-picks b{font-weight:500;font-size:13px}
+.cask-picks small{font-size:11px;color:#a68f74}
+.empty-note{font-size:12px;color:#a89074;line-height:1.8}
+.cellar-panel .text-button{color:#c9a466;margin-top:12px;min-height:30px;padding:4px 0;font-size:12px}
+
+.cellar-foot{position:relative;z-index:2;display:flex;justify-content:flex-end;align-items:baseline;gap:9px;
+  padding:12px clamp(20px,4.6vw,58px) clamp(14px,2.6vh,26px);
+  font-family:"Kaiti SC","KaiTi","楷体","STKaiti",serif;font-size:13px;letter-spacing:.06em;color:#93806a;
+  text-shadow:0 1px 8px #000000cc}
+.cellar-sign{color:#b79a72}
+
+.summary-cellar{margin:-14px 0 18px;font-size:12px;color:#8b7444;text-align:center;letter-spacing:.02em}
+
+/* 窗口不高时先压垂直空间，桶还是四个 */
+@media (max-height:820px){
+  .cellar-head{padding-top:clamp(10px,2vh,18px)}
+  .cellar-head h2{font-size:clamp(24px,2.5vw,32px);letter-spacing:.14em}
+  .cask-art{height:178px}
+  .cask-art canvas{width:228px!important;height:228px!important}
+  .cask-plate{padding:7px 9px 8px}
+  .cellar-foot{padding-bottom:10px;font-size:12px}
+}
+@media (max-width:1180px){
+  .cellar-body{grid-template-columns:minmax(0,1fr) clamp(212px,23vw,250px);gap:14px}
+  .cask-art{height:170px}
+  .cask-art canvas{width:218px!important;height:218px!important}
+  .cask h4{font-size:13px}
+  .cask-meta{font-size:10.5px}
+}
+@media (max-width:900px){
+  .cellar-body{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;align-content:start}
+  /* 窄屏把操作面板提到上面：点「放一桶」要当场看见选项 */
+  .cellar-panel{order:-1;align-self:start}
+  .cellar-rack{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:14px}
+  /* 窄屏：灯会被面板压住，规则说明也让位给操作 */
+  .cellar-lamp,.cellar-rule{display:none}
+  .cellar-body{padding-top:6px}
+  .cellar-foot{justify-content:flex-start}
+  .cellar-head{align-items:flex-start}
+  .cellar-head h2{font-size:28px}
+}
+@media (max-width:560px){
+  .cask-art{height:132px}
+  .cask-art canvas{width:168px!important;height:168px!important}
+  .cask h4{font-size:12.5px}
+  .cask-meta{font-size:10px}
+}
+@media (prefers-reduced-motion:reduce){
+  .cellar,.cellar.is-in,.cellar.is-leaving{transition:none;transform:none;opacity:1}
+}

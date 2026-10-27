@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>重看一遍 · 月下酒馆</title>
+<style>
+:root{--paper:#f3e9d6;--ink:#33291d;--soft:#7d6a52;--line:#d8c8ac;--wine:#7d3030}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;padding:28px;
+  background:#14100c radial-gradient(80% 60% at 50% 0%,#2a2016,#100c09 70%);
+  font-family:"Kaiti SC","KaiTi","楷体","STKaiti","SimSun","宋体",serif;color:var(--ink)}
+.card{width:min(560px,100%);background:var(--paper);padding:34px 38px 30px;
+  box-shadow:0 24px 70px #0009;position:relative;
+  clip-path:polygon(0 12px,12px 12px,12px 0,calc(100% - 12px) 0,calc(100% - 12px) 12px,100% 12px,
+    100% calc(100% - 12px),calc(100% - 12px) calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,12px calc(100% - 12px),0 calc(100% - 12px))}
+h1{margin:0 0 6px;font-size:24px;letter-spacing:.12em;font-weight:600}
+.sub{margin:0 0 20px;font-size:13px;color:var(--soft);letter-spacing:.06em}
+.slate{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;padding:12px 14px;margin:0 0 22px;
+  background:#e8dcc6;border:1px solid var(--line);font-size:13px;color:var(--soft)}
+.slate b{color:var(--ink);font-weight:600}
+.opt{display:block;width:100%;text-align:left;padding:13px 16px;margin:0 0 10px;cursor:pointer;
+  background:#fbf5e8;border:1px solid var(--line);font:inherit;color:var(--ink);
+  transition:background .16s,border-color .16s,transform .16s}
+.opt:hover{background:#fff;border-color:#b9a487;transform:translateY(-1px)}
+.opt strong{display:block;font-size:15px;letter-spacing:.05em;margin-bottom:3px}
+.opt span{display:block;font-size:12px;color:var(--soft);line-height:1.6}
+.opt.danger strong{color:var(--wine)}
+.ghost{background:none;border:0;color:var(--soft);font:inherit;font-size:13px;cursor:pointer;padding:6px 0;letter-spacing:.08em}
+.ghost:hover{color:var(--ink)}
+.done{font-size:13px;color:var(--wine);margin:10px 0 0;min-height:1em}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>想再看一遍？</h1>
+  <p class="sub">从这里决定要清掉哪些记录，选完就回店里。</p>
+  <div class="slate" id="slate">
+    <div>存档：<b id="s-day">—</b></div>
+    <div>引导：<b id="s-guide">—</b></div>
+    <div>邀请函：<b id="s-invite">—</b></div>
+    <div>本机地址：<b>127.0.0.1</b></div>
+  </div>
+
+  <button class="opt danger" data-do="all">
+    <strong>完整重来一遍</strong>
+    <span>清掉存档、引导进度和邀请函记录。从最初的邀请函开始，把新手教程两天完整走一遍。</span>
+  </button>
+  <button class="opt" data-do="guide">
+    <strong>只重置新手引导</strong>
+    <span>保留经营存档。注意：存档已经推进到后期（伙伴已满、当天已打烊）时，个别步骤不会触发。</span>
+  </button>
+  <button class="opt" data-do="none">
+    <strong>什么都不动，回店里</strong>
+    <span>直接进游戏，保持现状。</span>
+  </button>
+  <p class="done" id="done"></p>
+</div>
+
+<script>
+const SAVE='moonlit-tankard-save-v1',GUIDE='moonlit-guide-v1',INVITE='moonlit-invitation-v1';
+const read=k=>{try{return localStorage.getItem(k);}catch{return null;}};
+const del=k=>{try{localStorage.removeItem(k);}catch{}};
+
+function paint(){
+  let day='—',served='';
+  try{
+    const s=JSON.parse(read(SAVE)||'null');
+    if(s&&s.day){day='第 '+s.day+' 天';}
+  }catch{}
+  document.getElementById('s-day').textContent=day;
+  let g='未开始';
+  try{
+    const raw=JSON.parse(read(GUIDE)||'{}');
+    const n=(raw.done||[]).length;
+    if(raw.off)g='已毕业并关闭';
+    else if(n)g=n+' 步已完成';
+    else g='从头开始';
+  }catch{}
+  document.getElementById('s-guide').textContent=g;
+  document.getElementById('s-invite').textContent=read(INVITE)==='1'?'已看过':'还没看过';
+}
+paint();
+
+function go(mode){
+  if(mode==='all'){del(SAVE);del(GUIDE);del(INVITE);}
+  else if(mode==='guide'){del(GUIDE);}
+  document.getElementById('done').textContent=mode==='none'?'正在回店…':'记录已清，正在回店…';
+  setTimeout(()=>location.replace('/'),320);
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-do]');
+  if(b)go(b.dataset.do);
+});
+</script>
+</body>
+</html>

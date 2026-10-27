@@ -1,0 +1,87 @@
+/* 新手引导：左侧伙伴口吻的窄卡片 + 目标定位光圈。z-index 低于弹窗(25)，光圈高于弹窗(26)。 */
+/* 引导层：容器必须高于桌位卡片(#dialogue-root z-index 26)，否则光圈会被面板盖住。 */
+#guide-root{position:fixed;inset:0;pointer-events:none;z-index:27}
+
+.guide-card{position:absolute;right:24px;top:126px;width:266px;padding:13px 15px 14px;pointer-events:auto;
+  background:#fcf5e8f4;color:#463b2e;border:1px solid #fff8e5;border-radius:12px;
+  box-shadow:0 14px 40px #17100f40,0 0 0 1px #c9a86d33;backdrop-filter:blur(12px);
+  opacity:0;transform:translateX(8px);transition:opacity .26s ease,transform .26s ease}
+.guide-card.is-in{opacity:1;transform:none}
+.guide-card.is-card{border-style:dashed;border-color:#c9a86d70;background:#f9f0e0f2}
+
+.guide-head{display:flex;align-items:center;gap:9px}
+.guide-avatar{width:30px;height:30px;border-radius:8px;background:#e8dbc6;display:grid;place-items:center;flex-shrink:0}
+.guide-name{flex:1;min-width:0;line-height:1.3}
+.guide-name b{display:block;font-size:13px;font-weight:600}
+.guide-name small{display:block;font-size:10px;color:#9a866b;letter-spacing:.08em}
+.guide-count{color:#a8763a}
+.guide-close{width:22px;height:22px;font-size:19px;line-height:1;color:#a08c72;border-radius:5px;align-self:flex-start;flex-shrink:0}
+.guide-close:hover{background:#30271e0d;color:#7a6244}
+
+/* 进度条：让玩家知道这教程还有多长，不然每一张卡片都像最后一张。 */
+.guide-track{height:2px;margin-top:10px;border-radius:2px;background:#c9a86d33;overflow:hidden}
+.guide-track i{display:block;height:100%;width:0;border-radius:2px;
+  background:linear-gradient(90deg,#d8a556,#eec281);transition:width .45s ease}
+
+.guide-text{margin-top:9px;font-size:12.5px;line-height:1.78;color:#4b3f31}
+.guide-action{margin-top:9px;padding-top:8px;border-top:1px dashed #c9a86d66;font-size:11.5px;color:#a8763a}
+.guide-action:empty{display:none}
+
+/* 描边用近白色：金色按钮和暖色地板上，金圈几乎看不见。 */
+.guide-ring{position:fixed;z-index:26;pointer-events:none;transform:translate(-50%,-50%);
+  border:2px solid #fff6e2;
+  box-shadow:0 0 0 2px #e0a24a80,0 0 18px #ffbe5ecc,inset 0 0 14px #ffc46e55;
+  animation:guideRing 1.7s ease-in-out infinite}
+@keyframes guideRing{
+  0%,100%{opacity:.62;box-shadow:0 0 0 2px #e0a24a66,0 0 12px #ffbe5eaa,inset 0 0 10px #ffc46e44}
+  50%{opacity:1;box-shadow:0 0 0 4px #e0a24a99,0 0 26px #ffbe5eff,inset 0 0 18px #ffc46e77}
+}
+
+/* 毕业卡：把序章那张纸再拿出来一次。开头是邀请，收尾是交接。 */
+.guide-finale{position:fixed;inset:0;z-index:28;pointer-events:auto;display:grid;place-items:center;
+  background:radial-gradient(74% 62% at 50% 44%,#1a120c80,#0a0805dc 78%);
+  backdrop-filter:blur(2px);opacity:0;transition:opacity .55s ease}
+.guide-finale.is-in{opacity:1}
+.guide-finale.leaving{opacity:0;transition-duration:.42s}
+.finale-card{position:relative;width:min(420px,88vw);padding:clamp(30px,4.4vw,40px) clamp(26px,4vw,36px) 30px;
+  text-align:center;color:#3f362b;
+  font-family:"Songti SC","SimSun","宋体","STSong","Noto Serif SC",serif;
+  background:linear-gradient(168deg,#fdf6e7,#f6ecd7 46%,#f0e3c9);
+  clip-path:polygon(0 12px,4px 12px,4px 8px,8px 8px,8px 4px,12px 4px,12px 0,
+    calc(100% - 12px) 0,calc(100% - 12px) 4px,calc(100% - 8px) 4px,calc(100% - 8px) 8px,calc(100% - 4px) 8px,calc(100% - 4px) 12px,100% 12px,
+    100% calc(100% - 12px),calc(100% - 4px) calc(100% - 12px),calc(100% - 4px) calc(100% - 8px),calc(100% - 8px) calc(100% - 8px),calc(100% - 8px) calc(100% - 4px),calc(100% - 12px) calc(100% - 4px),calc(100% - 12px) 100%,
+    12px 100%,12px calc(100% - 4px),8px calc(100% - 4px),8px calc(100% - 8px),4px calc(100% - 8px),4px calc(100% - 12px),0 calc(100% - 12px));
+  filter:drop-shadow(0 26px 42px #000000a8) drop-shadow(0 4px 10px #00000066);
+  transform:translateY(16px) scale(.965);transition:transform .75s cubic-bezier(.14,.78,.16,1)}
+.guide-finale.is-in .finale-card{transform:none}
+.finale-card::before{content:"";position:absolute;inset:11px;pointer-events:none;border:2px solid #c8a6694a}
+.finale-card::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;
+  background:radial-gradient(120% 70% at 10% 0%,#b99a6714,#0000 60%),radial-gradient(90% 60% at 100% 100%,#a8834f1a,#0000 55%)}
+.finale-kicker{position:relative;z-index:1;font-size:10px;letter-spacing:.42em;color:#a9803f;text-transform:uppercase;
+  font-family:"Microsoft YaHei UI",system-ui,sans-serif}
+.finale-card h2{position:relative;z-index:1;margin-top:16px;font-size:clamp(24px,3.1vw,30px);font-weight:400;
+  letter-spacing:.16em;color:#33291f;font-family:"Kaiti SC","KaiTi","楷体","STKaiti","SimSun","宋体",serif}
+.finale-line{position:relative;z-index:1;margin-top:14px;font-size:14px;line-height:2;color:#5c4d3b;letter-spacing:.04em}
+.finale-stats{position:relative;z-index:1;margin-top:22px;padding-top:15px;border-top:1px dashed #c1a475;
+  font-size:11.5px;letter-spacing:.1em;color:#9a8663;font-family:"Microsoft YaHei UI",system-ui,sans-serif}
+.finale-sign{position:relative;z-index:1;margin-top:7px;font-size:12.5px;letter-spacing:.12em;color:#8a7355;
+  font-family:"Kaiti SC","KaiTi","楷体","STKaiti","SimSun","宋体",serif}
+.finale-cta{position:relative;z-index:1;margin-top:24px;min-height:42px;padding:0 30px;font-size:14px;letter-spacing:.1em;
+  font-family:"Kaiti SC","KaiTi","楷体","STKaiti","宋体",serif;color:#2c231b;background:#d7a357;border:0;
+  clip-path:polygon(0 6px,3px 6px,3px 3px,6px 3px,6px 0,calc(100% - 6px) 0,calc(100% - 6px) 3px,calc(100% - 3px) 3px,calc(100% - 3px) 6px,100% 6px,100% calc(100% - 6px),calc(100% - 3px) calc(100% - 6px),calc(100% - 3px) calc(100% - 3px),calc(100% - 6px) calc(100% - 3px),calc(100% - 6px) 100%,6px 100%,6px calc(100% - 3px),3px calc(100% - 3px),3px calc(100% - 6px),0 calc(100% - 6px));
+  box-shadow:inset 0 0 0 2px #8f6026,inset 0 2px 0 #f6d79d;
+  filter:drop-shadow(0 3px 0 #8f6026) drop-shadow(0 8px 14px #00000073);
+  transition:background .18s ease,transform .12s ease}
+.finale-cta:hover{background:#e7b869}
+.finale-cta:active{transform:translateY(2px)}
+
+@media (max-width:860px){
+  .guide-card{right:12px;left:auto;width:min(266px,calc(100vw - 24px));top:auto;bottom:190px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .guide-card,.guide-card.is-in{transition:none;opacity:1;transform:none}
+  .guide-ring{animation:none}
+  .guide-finale,.finale-card{transition:none}
+  .guide-finale.is-in .finale-card{transform:none}
+}

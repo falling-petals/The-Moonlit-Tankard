@@ -1,4 +1,4 @@
-import {DAY_LENGTH,WORLD,DRINKS,STAFF,UPGRADES,TABLE_LAYOUT,TABLE_COSTS,MAX_STAFF,REQUESTS,staffDefinition} from './content.js';
+import {DAY_LENGTH,WORLD,DRINKS,STAFF,UPGRADES,TABLE_LAYOUT,TABLE_COSTS,MAX_STAFF,REQUESTS,staffDefinition,STAR_BASE,STAR_STEPS,starTier,CELLAR,cellarSlots,caskBonus} from './content.js';
 import {findPath,nearestWalkable,isWalkable} from './navigation.js';
 import {RECIPES,STRATEGIES,createProgression,drinkInfo} from './progression.js';
 
@@ -11,7 +11,9 @@ export function createEmployee(id,index=0){
     memories:[],conversation:[],relationships:{},completed:0,bubble:'',bubbleUntil:0};
 }
 export function createGame(){
-  return {version:1,day:1,phase:'ready',elapsed:0,paused:false,speed:1,gold:360,reputation:4.2,
+  return {version:3,day:1,phase:'ready',elapsed:0,paused:false,speed:1,gold:360,reputation:4.2,
+    stars:STAR_BASE,milestones:[],pendingMilestone:null,starNote:'',
+    cellar:{casks:[],vintage:[],seq:0},
     stock:Object.fromEntries(Object.keys(DRINKS).map(id=>[id,['ale','citrus','tea'].includes(id)?12:0])),menu:Object.fromEntries(Object.keys(DRINKS).map(id=>[id,['ale','citrus','tea'].includes(id)])),staff:[createEmployee('qingya')],reserve:[],player:createPlayer(),
     tables:TABLE_LAYOUT.map((t,i)=>({...t,enabled:i<2,patienceMax:0,request:null,status:'empty',guest:null,order:null,worker:null,patience:0,eatTimer:0})),
     upgrades:{bar:0,ambience:0,cellar:0,plants:0},stats:freshStats(),summary:null,history:[],
@@ -22,6 +24,29 @@ function random(s){s.rng=(Math.imul(s.rng,1664525)+1013904223)>>>0;return s.rng/
 export function emit(s,type,data={}){const e={id:`${s.day}-${++s.eventSeq}`,type,time:s.elapsed,...data};s.events.push(e);s.events=s.events.slice(-45);return e;}
 export function log(s,text,tone='info'){s.logs.push({id:`log-${s.day}-${++s.eventSeq}`,text,tone});s.logs=s.logs.slice(-35);}
 const point=(x,y)=>({x,y});
+// —— 地窖 ——
+// 酒存在桶里、桶存在窖里。窖要三颗星才开，桶位随「扩容储藏柜」变多。
+export const cellarOpen=s=>!!s?.milestones?.includes('cellar');
+const stockCap=s=>s.upgrades.cellar?40:24;
+// 取库存时优先用够整桌的陈酿：不够一整桌就退回普通库存，账目才不会碎成小数。
+function takeStock(s,drink,need){
+  s.stock[drink]-=need;
+  const lots=(s.cellar?.vintage??[]).filter(v=>v.drink===drink&&v.qty>=need).sort((a,b)=>b.level-a.level);
+  const lot=lots[0];if(!lot)return 0;
+  lot.qty-=need;if(!lot.qty)s.cellar.vintage=s.cellar.vintage.filter(v=>v!==lot);
+  return lot.level;
+}
+// 工作被取消时把原料放回去，陈酿身份也跟着回去。
+function giveStock(s,drink,need,level=0){
+  s.stock[drink]=Math.min(stockCap(s),s.stock[drink]+need);
+  if(level>0){const lot=(s.cellar.vintage??[]).find(v=>v.drink===drink&&v.level===level);if(lot)lot.qty+=need;else (s.cellar.vintage??=[]).push({drink,qty:need,level});}
+}
+// 过一夜，桶里的酒好一点。到顶就不再变，也不会自己消失。
+function ageCasks(s){
+  let aged=0;
+  for(const c of s.cellar?.casks??[])if(c.level<CELLAR.maxLevel){c.level++;aged++;}
+  return aged;
+}
 function preparationTime(s,t){return drinkInfo(s,t.order.drink).brew*(s.upgrades.bar?.75:1)*(t.request?.fulfilled?REQUESTS[t.request.id]?.brewModifier??1:1);}
 const comboTier=count=>count>=10?10:count>=6?6:count>=3?3:0;
 function breakCombo(s){const c=s.progression.combo;c.count=0;c.tier=0;c.expiresAt=0;}
@@ -105,7 +130,7 @@ function assignJob(s,w){
     w.job={kind:'clean',table:t.id,stage:'walk',remaining:4};w.path=aislePath(w,point(t.x,t.y+100),s);
   } else {
     if(t.request&&!t.request.fulfilled&&staffDefinition(w.id).autoRequests)act(s,{type:'fulfill-request',table:t.id});
-    s.stock[t.order.drink]-=t.order.quantity;t.status='preparing';
+    t.order.vintage=takeStock(s,t.order.drink,t.order.quantity);t.status='preparing';
     w.job={kind:'order',table:t.id,stage:'bar',remaining:preparationTime(s,t)*(w.role==='bar'?.85:1.35)/(staffDefinition(w.id).brewPace??1)};
     w.path=aislePath(w,{...WORLD.bar,x:WORLD.bar.x+s.staff.indexOf(w)*50},s);
   }
@@ -137,25 +162,25 @@ function finishOrder(s,t,w){
   if(t.order&&!t.order.paid&&t.worker===w.id){
     if(t.request&&!t.request.fulfilled){emit(s,'request-rejected',{table:t.id,request:t.request.id});leave(s,t,true);return;}
     t.order.paid=true;t.status='served';t.eatTimer=26;t.worker=null;
-    const request=t.request?.fulfilled?REQUESTS[t.request.id]:null;
-    const drink=drinkInfo(s,t.order.drink),base=drink.price*t.order.quantity*(request?.priceModifier??1),p=s.progression;
+    const request=t.request?.fulfilled?REQUESTS[t.request.id]:null,vintage=t.order.vintage||0;
+    const drink=drinkInfo(s,t.order.drink),base=drink.price*t.order.quantity*(request?.priceModifier??1)*caskBonus(vintage),p=s.progression;
     const revenue=Math.round(base*serviceCombo(s)*(p.party.status==='active'?1.35:1));
-    const tip=(t.patience>70?2:0)+(s.upgrades.ambience?2:0)+drink.tipModifier+(request?.tip??0)+(w.id==='player'?0:staffDefinition(w.id).tipBonus??0);
+    const tip=(t.patience>70?2:0)+(s.upgrades.ambience?2:0)+drink.tipModifier+(request?.tip??0)+(w.id==='player'?0:staffDefinition(w.id).tipBonus??0)+vintage*CELLAR.tipStep;
     const deferred=p.cameo.status==='active'?Math.min(revenue,1000-p.cameo.pot):0;
     if(p.cameo.status==='active'){p.cameo.pot+=deferred;p.cameo.orders++;}
     if(p.party.status==='active')p.party.served++;
     s.gold+=revenue-deferred+tip;s.stats.revenue+=revenue;s.stats.tips+=tip;s.stats.served++;
     if(s.stats.served>=3&&!p.goals.served){p.goals.served=true;p.inspiration+=8;emit(s,'daily-goal',{goal:'served',amount:8});}
     s.reputation=Math.min(5,Math.round((s.reputation+.015)*1000)/1000);w.completed++;
-    emit(s,'served',{staff:w.id,table:t.id,drink:t.order.drink,revenue,tip,amount:revenue+tip,deferred});
-    log(s,`${w.id==='player'?'你':staffDefinition(w.id).name}完成 ${t.id.slice(1).padStart(2,'0')} 桌订单，收入 ${revenue+tip} 金币${deferred?'，饮品记入全场待结账单':''}。`,'success');w.job=null;
+    emit(s,'served',{staff:w.id,table:t.id,drink:t.order.drink,revenue,tip,amount:revenue+tip,deferred,vintage});
+    log(s,`${w.id==='player'?'你':staffDefinition(w.id).name}完成 ${t.id.slice(1).padStart(2,'0')} 桌订单，收入 ${revenue+tip} 金币${vintage?'（地窖陈酿）':''}${deferred?'，饮品记入全场待结账单':''}。`,'success');w.job=null;
   }
 }
 function releaseInteraction(s){s.player.interaction=null;s.player.target=null;for(const w of s.staff)if(w.chatWith==='player')w.chatWith=null;}
 function cancelPlayer(s){
   const p=s.player,t=s.tables.find(t=>t.id===p.job?.table);
   if(t?.worker==='player'){
-    if(p.job.consumed&&t.order&&!t.order.paid&&!t.order.ready)s.stock[t.order.drink]=Math.min(s.upgrades.cellar?40:24,s.stock[t.order.drink]+t.order.quantity);
+    if(p.job.consumed&&t.order&&!t.order.paid&&!t.order.ready){giveStock(s,t.order.drink,t.order.quantity,t.order.vintage);t.order.vintage=0;}
     if(t.status==='preparing')t.status=t.order?.ready?'ready':'waiting';t.worker=null;
   }
   p.job=null;p.carrying=null;p.path=[];releaseInteraction(s);
@@ -179,7 +204,7 @@ function updatePlayer(s,dt){
     if(j.stage==='bar'){
       if(!j.consumed){
         if(s.stock[t.order.drink]<t.order.quantity){cancelPlayer(s);log(s,'原料不足，先去储藏柜补货吧。','warning');return;}
-        s.stock[t.order.drink]-=t.order.quantity;j.consumed=true;
+        t.order.vintage=takeStock(s,t.order.drink,t.order.quantity);j.consumed=true;
       }
       j.stage='prepare';return;
     }
@@ -225,13 +250,32 @@ export function advance(s,seconds){
   while(remaining>.000001&&s.phase==='open'){const dt=Math.min(.25,remaining);tick(s,dt);remaining-=dt;}
   return s;
 }
+// 星星只在打烊时结成：一晚最多点亮一颗，且当天不能有太多客人等走。
+function confirmStars(s){
+  s.starNote='';
+  const before=s.stars,tier=starTier(s.reputation);
+  if(tier>before){
+    if(s.stats.missed<=2){
+      s.stars=Math.min(tier,before+1);s.starNote='star';
+      const step=STAR_STEPS.find(v=>v.star===s.stars);
+      log(s,`第 ${s.stars} 颗星亮了 —— ${step?.name||'口碑又涨了一点'}。`,'success');
+    }else s.starNote='blocked';
+  }
+  const step=STAR_STEPS.find(v=>v.star===s.stars);
+  if(step&&!s.milestones.includes(step.id)){s.milestones.push(step.id);s.pendingMilestone=step.id;emit(s,'milestone',{reason:step.id});}
+}
 function settle(s){
   if(s.lastSettledDay===s.day)return;
   payCameo(s);finishParty(s);
   cancelPlayer(s);
   const wages=s.staff.reduce((n,w)=>n+staffDefinition(w.id).wage,0);
   const paidWages=Math.min(s.gold,wages);s.gold-=paidWages;s.stats.wages=paidWages;
-  s.summary={day:s.day,...s.stats,profit:s.stats.revenue+s.stats.tips-s.stats.purchases-paidWages,reputation:s.reputation};
+  const beforeStars=s.stars;confirmStars(s);
+  // 一晚上过去，桶里的酒才往前走一级——地窖的收益是等出来的。
+  const aged=ageCasks(s);
+  s.summary={day:s.day,...s.stats,profit:s.stats.revenue+s.stats.tips-s.stats.purchases-paidWages,reputation:s.reputation,
+    stars:s.stars,starGain:s.stars-beforeStars,starNote:s.starNote,cellarAged:aged};
+  if(aged)log(s,`地窖里 ${aged} 桶酒又陈了一夜。`,'success');
   s.history.push({...s.summary});s.history=s.history.slice(-14);s.lastSettledDay=s.day;s.phase='closed';s.paused=false;
   for(const w of s.staff){w.job=null;w.path=[];w.chatWith=null;w.socialUntil=0;}
   for(const t of s.tables)Object.assign(t,{status:'empty',guest:null,order:null,worker:null,patience:0,patienceMax:0,request:null,eatTimer:0});
@@ -327,6 +371,33 @@ export function act(s,a){
       if(!s.player.carrying||s.player.carrying.table!==a.table)return fail('手里没有这桌的饮品');
       const t=s.tables.find(t=>t.id===a.table);if(!t||t.worker!=='player'||t.status!=='preparing')return fail('这桌订单已结束');
       releaseInteraction(s);s.player.job.suspended=false;s.player.job.stage='deliver';s.player.path=aislePath(s.player,{x:t.x,y:t.y+100},s);return ok('把饮品端给客人');
+    }
+    case 'cellar-store':{
+      if(!cellarOpen(s))return fail('地窖还锁着，等第三颗星亮了再说');
+      if(s.cellar.casks.length>=cellarSlots(s))return fail('桶位满了，先取出一桶再存');
+      const d=DRINKS[a.drink];if(!d)return fail('未知饮品');
+      const qty=Math.min(CELLAR.perCask,s.stock[d.id]);
+      if(qty<=0)return fail(`${d.name}没有库存，先去补货`);
+      s.stock[d.id]-=qty;
+      const cask={id:`k${++s.cellar.seq}`,drink:d.id,qty,level:0,day:s.day};
+      s.cellar.casks.push(cask);
+      log(s,`${d.name} ${qty} 份入窖，明晚会更顺口。`);
+      emit(s,'cellar-stored',{cask:cask.id,drink:d.id,qty});
+      return ok(`${d.name} ×${qty} 入窖`);
+    }
+    case 'cellar-tap':{
+      if(!cellarOpen(s))return fail('地窖还锁着');
+      const index=s.cellar.casks.findIndex(c=>c.id===a.id);
+      if(index<0)return fail('这桶酒已经不在了');
+      const cask=s.cellar.casks[index];
+      if(s.stock[cask.drink]+cask.qty>stockCap(s))return fail('楼上储藏放不下，先卖掉一些再来取');
+      s.cellar.casks.splice(index,1);
+      s.stock[cask.drink]+=cask.qty;
+      if(cask.level>0)(s.cellar.vintage??=[]).push({drink:cask.drink,qty:cask.qty,level:cask.level});
+      const d=DRINKS[cask.drink];
+      log(s,cask.level?`取出一桶${d.name}——陈了 ${cask.level} 级，今晚按陈酿价卖。`:`取出一桶${d.name}，还没陈出味道。`,cask.level?'success':'info');
+      emit(s,'cellar-tapped',{cask:cask.id,drink:cask.drink,qty:cask.qty,level:cask.level});
+      return ok(cask.level?`${d.name} ×${cask.qty} · ${cask.level} 级陈酿`:`${d.name} ×${cask.qty} 已搬上楼`);
     }
     case 'open':if(s.phase!=='ready')return fail('已经开门了');if(!Object.values(s.menu).some(Boolean))return fail('至少需要一款在售饮品');s.phase='open';s.paused=false;log(s,'酒馆开门营业，第一位客人很快就到。','success');return ok('开始营业');
     case 'pause':if(s.phase!=='open')return fail('营业中可以暂停');s.paused=!s.paused;return ok(s.paused?'已暂停':'继续营业');

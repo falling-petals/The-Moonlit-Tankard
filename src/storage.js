@@ -1,5 +1,5 @@
 import * as engine from './engine.js';
-import {STAFF,DRINKS,TABLE_LAYOUT,UPGRADES,WORLD,REQUESTS,MAX_STAFF} from './content.js';
+import {STAFF,DRINKS,TABLE_LAYOUT,UPGRADES,WORLD,REQUESTS,MAX_STAFF,STAR_BASE,STAR_STEPS,starTier,CELLAR} from './content.js';
 import {isWalkable,nearestWalkable,findPath} from './navigation.js';
 import {publicProgression,parseProgression} from './progression.js';
 const {createGame}=engine;
@@ -11,7 +11,8 @@ const cleanPath=p=>p?.map(v=>pick(v,['x','y']));
 const cleanJob=j=>pick(j,['kind','table','stage','remaining','consumed','suspended']);
 const cleanTarget=t=>pick(t,['kind','id']);
 const STAT_KEYS=['revenue','tips','purchases','wages','served','missed'];
-const receipt=r=>pick(r,['day',...STAT_KEYS,'profit','reputation']);
+const receipt=r=>pick(r,['day',...STAT_KEYS,'profit','reputation','stars','starGain','starNote','cellarAged']);
+const MAX_SLOTS=CELLAR.baseSlots+CELLAR.extraSlots;
 const cleanWorker=w=>{const v=pick(w,WORKER_KEYS);v.path=cleanPath(w.path);v.job=cleanJob(w.job);v.memories=w.memories?.filter(m=>typeof m==='string');v.conversation=w.conversation?.filter(c=>c&&typeof c.text==='string'&&typeof c.role==='string').map(c=>pick(c,['role','text','kind','time']));v.relationships=pick(w.relationships,STAFF.map(d=>d.id));v.suggestion=['tasting','party','recipe','quick','premium'].includes(w.suggestion)?w.suggestion:undefined;return v;};
 export function publicSave(state){
   const safe=pick(state,KEYS);
@@ -21,8 +22,13 @@ export function publicSave(state){
   safe.player.carrying=pick(safe.player.carrying,['table','drink','quantity']);
   safe.player.target=cleanTarget(safe.player.target);safe.player.interaction=cleanTarget(safe.player.interaction);
   safe.staff=state.staff.map(cleanWorker);safe.reserve=(state.reserve??[]).map(cleanWorker);
-  safe.tables=state.tables.map(t=>{const v=pick(t,['id','x','y','shape','enabled','status','guest','order','worker','patience','patienceMax','eatTimer']);v.order=pick(t.order,['drink','quantity','paid','ready']);v.request=pick(t.request,['id','fulfilled']);v.guest=pick(t.guest,['id','variant','party','x','y','direction','path']);if(v.guest){v.guest.path=cleanPath(v.guest.path);if(t.guest.companion)v.guest.companion=pick(t.guest.companion,['x','y']);}return v;});
+  safe.tables=state.tables.map(t=>{const v=pick(t,['id','x','y','shape','enabled','status','guest','order','worker','patience','patienceMax','eatTimer']);v.order=pick(t.order,['drink','quantity','paid','ready','vintage']);v.request=pick(t.request,['id','fulfilled']);v.guest=pick(t.guest,['id','variant','party','x','y','direction','path']);if(v.guest){v.guest.path=cleanPath(v.guest.path);if(t.guest.companion)v.guest.companion=pick(t.guest.companion,['x','y']);}return v;});
   safe.stock=pick(state.stock,Object.keys(DRINKS));safe.menu=pick(state.menu,Object.keys(DRINKS));safe.upgrades=pick(state.upgrades,Object.keys(UPGRADES));safe.stats=pick(state.stats,STAT_KEYS);
+  safe.cellar={
+    casks:(state.cellar?.casks??[]).map(c=>pick(c,['id','drink','qty','level','day'])),
+    vintage:(state.cellar?.vintage??[]).map(v=>pick(v,['drink','qty','level'])),
+    seq:state.cellar?.seq??0
+  };
   safe.events=state.events.map(e=>{const v=pick(e,['id','type','time','staff','table','drink','summary','text','target','amount','total','bonus','count','tier','inspiration','duplicate','rarity','startAt','endsAt','orders','reason','recipe','revenue','tip','deferred','served','rewarded','goal','request']);if(v.summary)v.summary=receipt(v.summary);if(v.target&&typeof v.target==='object')v.target=cleanTarget(v.target);if(v.recipe&&typeof v.recipe==='object')v.recipe=pick(v.recipe,['id','name','base','rarity','frame','description']);if(v.request&&typeof v.request==='object')v.request=pick(v.request,['id','fulfilled']);return v;});
   safe.logs=state.logs.map(l=>pick(l,['id','text','tone']));safe.history=state.history.map(receipt);safe.summary=receipt(state.summary);
   return JSON.stringify(safe);
@@ -32,10 +38,36 @@ const position=p=>p&&number(p.x,0,1536)&&number(p.y,0,1024);
 const path=p=>Array.isArray(p)&&p.length<=30&&p.every(position);
 const stats=s=>s&&['revenue','tips','purchases','wages','served','missed'].every(k=>number(s[k]));
 function requireValid(condition){if(!condition)throw new Error('存档格式无效或内容不完整。');}
+export const SAVE_VERSION=3;
+// 一版一版往上搬。旧档只补字段，不重算玩家的成绩：已经攒下的口碑值几颗星就是几颗星。
+function migrate(s){
+  if(s.version<2){
+    s.stars=starTier(s.reputation);s.milestones=[];s.starNote='';s.pendingMilestone=null;s.version=2;
+  }
+  if(s.version<3){s.cellar={casks:[],vintage:[],seq:0};s.version=3;}
+  s.stars=Number.isInteger(s.stars)?Math.min(5,Math.max(0,s.stars)):STAR_BASE;
+  s.milestones=Array.isArray(s.milestones)?[...new Set(s.milestones)].filter(id=>STAR_STEPS.some(v=>v.id===id)).slice(0,3):[];
+  s.pendingMilestone=STAR_STEPS.some(v=>v.id===s.pendingMilestone)?s.pendingMilestone:null;
+  s.starNote=['star','blocked'].includes(s.starNote)?s.starNote:'';
+  // 地窖：坏掉的桶直接丢掉，宁可少一桶也不要让整份存档读不进来。
+  const raw=s.cellar&&typeof s.cellar==='object'?s.cellar:{};
+  const good=o=>o&&DRINKS[o.drink]&&Number.isInteger(o.qty)&&o.qty>0&&o.qty<=CELLAR.perCask&&Number.isInteger(o.level)&&o.level>=0&&o.level<=CELLAR.maxLevel;
+  const seen=new Set();
+  const casks=(Array.isArray(raw.casks)?raw.casks:[]).filter(good).slice(0,MAX_SLOTS).map(c=>{
+    let id=typeof c.id==='string'&&c.id?c.id:`k${(raw.seq??0)+Math.random()}`;
+    if(seen.has(id))id=`k${id}-${seen.size}`;
+    seen.add(id);
+    return {id,drink:c.drink,qty:c.qty,level:c.level,day:Number.isInteger(c.day)&&c.day>=1?c.day:1};
+  });
+  const vintage=(Array.isArray(raw.vintage)?raw.vintage:[]).filter(good).map(v=>({drink:v.drink,qty:v.qty,level:v.level}));
+  s.cellar={casks,vintage,seq:Number.isInteger(raw.seq)&&raw.seq>=0?raw.seq:casks.length};
+  return s;
+}
 export function parseGame(raw){
   const s=typeof raw==='string'?JSON.parse(raw):JSON.parse(JSON.stringify(raw));
   const legacy=s&&!Object.hasOwn(s,'player');if(legacy)s.player=createPlayer();
-  requireValid(s&&s.version===1&&['ready','open','closed'].includes(s.phase)&&number(s.gold)&&number(s.reputation,1,5)&&number(s.elapsed,0,600)&&Number.isInteger(s.day)&&s.day>=1);
+  requireValid(s&&Number.isInteger(s.version)&&s.version>=1&&s.version<=SAVE_VERSION&&['ready','open','closed'].includes(s.phase)&&number(s.gold)&&number(s.reputation,1,5)&&number(s.elapsed,0,600)&&Number.isInteger(s.day)&&s.day>=1);
+  migrate(s);requireValid(s.version===SAVE_VERSION);
   requireValid(typeof s.paused==='boolean'&&[1,2,3].includes(s.speed)&&number(s.rng,0,4294967295)&&number(s.arrivalIn,-1000,1000)&&number(s.eventSeq)&&number(s.guestSeq)&&number(s.lastSettledDay)&&[null,'tasting'].includes(s.event));
   s.progression=parseProgression(s.progression,s);requireValid(s.progression);
   requireValid(Array.isArray(s.staff)&&s.staff.length>=1&&s.staff.length<=4&&new Set(s.staff.map(w=>w.id)).size===s.staff.length);
@@ -48,6 +80,7 @@ export function parseGame(raw){
   requireValid(s.stock&&Object.keys(DRINKS).every(k=>Number.isInteger(s.stock[k])&&number(s.stock[k],0,40)));
   requireValid(s.menu&&Object.keys(DRINKS).every(k=>typeof s.menu[k]==='boolean')&&Object.values(s.menu).some(Boolean));
   requireValid(s.upgrades&&Object.keys(UPGRADES).every(k=>[0,1].includes(s.upgrades[k]))&&stats(s.stats));
+  requireValid(s.cellar&&Array.isArray(s.cellar.casks)&&s.cellar.casks.length<=MAX_SLOTS&&Array.isArray(s.cellar.vintage)&&number(s.cellar.seq));
   requireValid(Array.isArray(s.events)&&s.events.every(e=>e&&typeof e.id==='string'&&typeof e.type==='string')&&Array.isArray(s.logs)&&s.logs.every(l=>l&&typeof l.text==='string')&&Array.isArray(s.history));
   requireValid(Array.isArray(s.tables));
   if(s.tables.length===4&&s.tables.every(t=>TABLE_LAYOUT.slice(0,4).some(d=>d.id===t.id))){
@@ -88,6 +121,7 @@ export function parseGame(raw){
     if(t.status==='empty')requireValid(t.guest===null&&t.order===null);
     else requireValid(t.order&&DRINKS[t.order.drink]&&[1,2].includes(t.order.quantity)&&typeof t.order.paid==='boolean');
     if(t.order?.ready!==undefined)requireValid(typeof t.order.ready==='boolean');
+    if(t.order?.vintage!==undefined)requireValid([0,1,2,3].includes(t.order.vintage));
     if(t.status==='ready')requireValid(t.order.ready===true&&t.worker===null&&!t.order.paid);
     if(['arriving','waiting','preparing','ready','served','leaving'].includes(t.status))requireValid(t.guest);
     if(t.guest)requireValid(position(t.guest)&&path(t.guest.path)&&[0,1,2,3].includes(t.guest.variant)&&[1,2].includes(t.guest.party)&&number(t.guest.id));
@@ -120,7 +154,10 @@ export function parseGame(raw){
     if(blocked){const snapped=nearestWalkable(actor,navigation);requireValid(snapped);Object.assign(actor,snapped);}
     if(legacy||blocked){let goal=null;if(actor.job){const t=s.tables.find(t=>t.id===actor.job.table);goal=actor.job.stage==='pickup'?WORLD.pass:['bar','prepare'].includes(actor.job.stage)?WORLD.bar:{x:t.x,y:t.y+100};}else if(actor.path.length)goal=actor.path.at(-1);actor.path=goal?findPath(actor,goal,navigation):[];}
   }
-  const receipt=r=>r&&stats(r)&&number(r.day,1)&&number(r.profit,-1e9)&&number(r.reputation,1,5);
+  const receipt=r=>r&&stats(r)&&number(r.day,1)&&number(r.profit,-1e9)&&number(r.reputation,1,5)&&
+    (r.stars===undefined||Number.isInteger(r.stars)&&number(r.stars,0,5))&&
+    (r.starGain===undefined||number(r.starGain,-5,5))&&(r.starNote===undefined||['','star','blocked'].includes(r.starNote))&&
+    (r.cellarAged===undefined||number(r.cellarAged,0,8));
   requireValid((s.summary===null||receipt(s.summary))&&s.history.every(receipt));
   if(s.phase==='closed')requireValid(s.summary&&s.summary.day===s.day&&s.lastSettledDay===s.day);
   const clean=JSON.parse(publicSave(s));for(const w of clean.staff){w.chatWith=null;w.socialUntil=0;}return clean;
