@@ -19,7 +19,9 @@
 | drinks-atlas.png | 9款饮品与珍藏特调，16件素材 | 4列×4行，透明底；行界实际为0/343/630/915/1254 |
 | zone-studies.png | 大厅、吧台、后厨、地窖的现代方向图 | 开发参考，不当作寻路数据 |
 
-厂商AI形象尚未提供。当前原创角色为可替换占位角色：青芽（温和服务机器人）、团团（橘色调饮助手）、星禾（青色星头伙伴）、弦月（紫色月头伙伴）。
+2026-10-27起，运行时改用玩家提供的社区二创角色参考及性格卡。旧staff-atlas保留作历史资产；运行时每名员工使用自己的crew-*-atlas。DeepSeek/Qwen/Z/GPT/Claude楼上，Gemini/文心地窖，Tom特殊伙伴；Kimi、Tencent、Grok、Mistral、Seed备用。
+
+新增11张RGBA四格图集，共44帧，通常按正面待机／步态A／步态B／背面排列；support图集为Tencent/Grok/Mistral/Seed四个独立待机，mouse为待机／两帧小跑／惊讶。总计156个透明源坐标，完整PNG未裁剪或重绘。每格读取alpha有效边界，底部居中锚点；mouse下排分界为x=735，保留第三帧长尾。生成使用内置imagegen，提示词保存在art-prototype/final/2026-10-27-*-generation-prompts.json，输入参考在art-prototype/references/ai-crew。所有最终图已保存assets/art并注册图册，不依赖工具输出目录。
 
 ## 图集使用
 
@@ -38,16 +40,32 @@
 
 ## 界面
 
-场景铺满视口。角落使用炭灰玻璃HUD，正中管理面板为暖白色，桌面端宽约900px；底部6个按钮直接开界面，店长工作时才显示工作条。走近员工时弹出人物旁约320px宽的暖白小对话框，顾客需求也使用同尺寸浮框。移除常驻设施名称、桌号、聊天按钮及冗余天气文字。餐桌仅显示订单、需求图标和耐心环，悬停显示简短状态；扩建空位不显示标记；餐桌不作为点击目标，命中仅保留人物、头顶订单提示和小清洁图标。
+场景铺满视口。角落使用炭灰玻璃HUD，正中管理面板为暖白色，桌面端宽约900px；底部管理按钮直接开界面，店长工作时才显示工作条。走近员工时弹出人物旁约320px宽的暖白小对话框，顾客需求也使用同尺寸浮框。移除常驻设施名称、桌号、聊天按钮及冗余天气文字。餐桌仅显示订单、需求图标和耐心环，悬停显示简短状态；扩建空位不显示标记；餐桌不作为点击目标，命中仅保留人物、头顶订单提示和小清洁图标。
 
 界面色板：炭灰#292623；暖白#F5EEDF；琥珀#D5A255；珊瑚#F3AA8C。正文13px、次级文字12px、管理标题21px；数字使用tabular-nums，HUD金额/时间约26px。场景绿植保留原色。
 
-新饮品图集通过内置image_gen生成，完整提示词见art-prototype/final/service-drinks-prompt.json。PNG原图不修改，manifest按透明行间隙读取可见包围盒。菜单、秘方、顾客订单、出餐台和桌面使用同一图集。运行时现有10张原图、7张透明图集、112个切片。
+新饮品图集通过内置image_gen生成，完整提示词见art-prototype/final/service-drinks-prompt.json。PNG原图不修改，manifest按透明行间隙读取可见包围盒。菜单、秘方、顾客订单、出餐台和桌面使用同一图集。该阶段为10张原图、7张透明图集、112个切片；当前总量见下方2026-10-28节。
 
 完整生成提示词见 art-prototype/final/generation-prompts.json。使用内置image_gen生成，无额外图像API费用配置。
 
-人类店长的独立生成提示词见 art-prototype/final/owner-generation-prompt.json；客串和活动图集的完整提示词见 art-prototype/final/party-generation-prompt.json。均使用内置image_gen并保留原图；图集共6张、96个透明源矩形，总计9张源PNG。
+人类店长的独立生成提示词见 art-prototype/final/owner-generation-prompt.json；客串和活动图集的完整提示词见 art-prototype/final/party-generation-prompt.json。均使用内置image_gen并保留原图；该早期阶段为6张图集、96个透明源矩形、9张源PNG。
 
 客串为轻松虚构演出，黄仁勋使用银发、眼镜和黑皮衣造型，展示买单账单。派对以局部珊瑚/青色灯光、唱片和彩纸体现，未替换用户已选的昼夜底图。金币和连击粒子有数量上限，开启减少动态效果时停用粒子和连续动态。声音由本地WebAudio产生，首次鼠标操作后才解锁，右下角可静音。
 
 event-atlas的实际生成行距不完全等分。构建脚本按透明行间隔读取0–365、365–650、650–940、940–1254四个源区，完整保留鞋底并排除邻行碎片；PNG本身未修改。使用manifest中的cell/rect坐标，不要重新按四等分裁图。
+
+## 2026-10-28 四向动作与表情（当前）
+
+13位角色各新增20帧，共260帧。当前manifest总计36份原图、416个切片。命名crew-{visualId}-motion-v2-atlas.png；角色包括DeepSeek、Qwen、Z、GPT、Claude、Gemini、文心、Tom、Kimi、Tencent、Grok、Mistral、Seed。游戏只预载前8位，旧图用于兼容回退，备用人物按需在预览页加载。
+
+帧号：正面0/1/2，背面4/5/6，左8/9/10，右12/13/14；每组为站立/两步。表情neutral0、blink3、happy7、sad11、angry15、thinking16、surprised17、working18、tired19。方向优先跟随实际路径，聊天以店长位置为朝向；正面身体和小头像可显示表情。
+
+原PNG保持字节不变。生成内容并非严格等距排版，必须使用manifest内rect，禁止重新按4×5等分。frame-bounds.json通过只读alpha连通域检查获得20个完整主体矩形，两处小范围跨行接触在透明度局部低谷分开；完整保留头发和鞋底。referenceHeight使用四方向站立高度中值，anchor以源矩形底部居中，避免每帧单独拉伸产生大小跳变。
+
+生成提示词：art-prototype/final/2026-10-28-motion-generation.json；原始来源/输入与SHA256：motion-assets.json；精确读取矩形：motion-frame-bounds.json。使用内置imagegen透明输出，不做像素后处理。[角色动作室](../assets/characters.html)可以单独切换每位表情、四向行走与暂停。
+
+## 酒窖地图与旧图集修正
+
+用户JPEG保存在assets/art/cellar-room.jpg，原文件字节不变。manifest的sourceRect为[24,21,816,530]，运行时读取内部地图，排除原附图的界面边框。角色和碰撞使用816×530独立坐标，nav障碍与站点在src/cellar-scene.js。预算与陈酿面板默认关闭，地图铺满高度；场景脚底与鼠标点击使用同一反投影。
+
+旧player-atlas的名义四等分包含上一行鞋底，改用透明行界[0,330,646,950,1254]。furniture-atlas地毯原裁切带入左邻沙发腿，改读rect=[681,988,282,185]；沙发仍保留自己的腿，招牌排除地毯边缘。精确读取区与原PNG校验记录见art-prototype/final/2026-10-28-legacy-frame-bounds.json。当前注册35份PNG与1份JPEG，共416个透明切片。

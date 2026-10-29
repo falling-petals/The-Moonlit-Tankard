@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-27",
+  "tool": "built-in image_gen.imagegen",
+  "characters": 13,
+  "framesAdded": 44,
+  "sheets": {
+    "crew-claude-atlas": {
+      "path": "assets/art/crew-claude-atlas.png",
+      "sha256": "6cf4b8e1fc862e391d220489324b483214a9c764b51eb34f829d94e04602e655",
+      "source_pixels": "unmodified generated PNG",
+      "layout": "2x2, read exact manifest source coordinates"
+    },
+    "crew-deepseek-atlas": {
+      "path": "assets/art/crew-deepseek-atlas.png",
+      "sha256": "ca2f1e860caba9d065d9ca2f2576798998f3ccaf4fe3bfe0f91aa4a11039a025",
+      "source_pixels": "unmodified generated PNG",
+      "layout": "2x2, read exact manifest source coordinates"
+    },
+    "crew-gemini-atlas": {
+      "path": "assets/art/crew-gemini-atlas.png",
+      "sha256": "55501cdb6be1f2b89308319bc12c6a78d3d79631730e63663d44d054f91e383c",
+      "source_pixels": "unmodified generated PNG",
+      "layout": "2x2, read exact manifest source coordinates"
+    },
+    "crew-gpt-atlas": {
+      "path": "assets/art/crew-gpt-atlas.png",
+      "sha256": "cd6e3249f482efb8e27d56eb4d0877ba475460b4533c440aece7dc9a347cd1a6",
+      "source_pixels": "unmodified generated PNG",
+      "layout": "2x2, read exact manifest source coordinates"
+    },
+    "crew-kimi-atlas": {
+      "path": "assets/art/crew-kimi-atlas.png",
+      "sha256": "4e2d593f933248aaa338a5a3b359f3aa4c1814270ee90a6ff9c4ece3714e7a3b",
+      "source_pixels": "unmodified generated PNG",
+      "layout": "2x2, read exact manifest source coordinates"
+    },
+    "crew-mouse-atlas": {
+      "path": "assets/art/crew-mouse-atlas.png",
+      "sha256": "c1980684d80842b406d9df7a9a142697c9487afe918949583cd220b9635f51a1",
+      "source_pixels": "unmodified generated PNG",
+      "layout": "2x2, read exact manifest source coordinates"
+    },
+    "crew-qwen-atlas": {
+      "path": "assets/art/crew-qwen-atlas.png",
+      "sha256": "0367f6675c8449b1784df33e086c6c4e518c6e5db19165899209fea8dc442583",
+      "source_pixels": "unmodified generated PNG",
+      "layout": "2x2, read exact manifest source coordinates"
+    },
+    "crew-support-atlas": {
+      "path": "assets/art/crew-support-atlas.png",
+      "sha256": "c561abfc2dbc39decd3632a0e11c3b646649009a25d05b11522129da96e8e347",
+      "source_pixels": "unmodified generated PNG",
+      "layout": "2x2, read exact manifest source coordinates"
+    },
+    "crew-tom-atlas": {
+      "path": "assets/art/crew-tom-atlas.png",
+      "sha256": "ef43adadc88a874aa1232f33cfc487dbdf117124348dedaf64be5ccafec74583",
+      "source_pixels": "unmodified generated PNG",
+      "layout": "2x2, read exact manifest source coordinates"
+    },
+    "crew-wenxin-atlas": {
+      "path": "assets/art/crew-wenxin-atlas.png",
+      "sha256": "3077bf08dc03e605b69437ae3c7476c1764515d9f585f2dd3326eba49712a2a7",
+      "source_pixels": "unmodified generated PNG",
+      "layout": "2x2, read exact manifest source coordinates"
+    },
+    "crew-z-atlas": {
+      "path": "assets/art/crew-z-atlas.png",
+      "sha256": "10e0630b1df48728045d385363df88f4f5d34b29a83bf9de5cd91f74bcca4cc6",
+      "source_pixels": "unmodified generated PNG",
+      "layout": "2x2, read exact manifest source coordinates"
+    }
+  }
+}

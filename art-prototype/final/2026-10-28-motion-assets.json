@@ -1,0 +1,145 @@
+[
+  {
+    "id": "deepseek",
+    "path": "assets/art/crew-deepseek-motion-v2-atlas.png",
+    "source": "exec-53d4581a-007f-4a37-8ab2-69b89ebf9ae6.png",
+    "reference": "assets/art/crew-deepseek-atlas.png",
+    "size": [
+      1122,
+      1402
+    ],
+    "sha256": "c572642020cc7476ed0852bca11a1a19fbaa923b407affad2126e501d6e72a0b"
+  },
+  {
+    "id": "qwen",
+    "path": "assets/art/crew-qwen-motion-v2-atlas.png",
+    "source": "exec-8977878f-62a3-40f4-8d76-fb534eefdb20.png",
+    "reference": "assets/art/crew-qwen-atlas.png",
+    "size": [
+      1122,
+      1402
+    ],
+    "sha256": "42d9edc655e3ba7a8dcd7e39346ce3a44afa088b6f78a9e9d5903908dd667115"
+  },
+  {
+    "id": "tom",
+    "path": "assets/art/crew-tom-motion-v2-atlas.png",
+    "source": "exec-6aec0160-4324-41b5-a77c-4d2cd2d52d86.png",
+    "reference": "assets/art/crew-tom-atlas.png",
+    "size": [
+      1122,
+      1402
+    ],
+    "sha256": "0ab9e01c3b1e1353bc3fa00582f826fe41ecf0327dc435c25f933e0a0f00c181"
+  },
+  {
+    "id": "claude",
+    "path": "assets/art/crew-claude-motion-v2-atlas.png",
+    "source": "exec-812b91c8-08a9-4d73-a220-15dba6c63f83.png",
+    "reference": "assets/art/crew-claude-atlas.png",
+    "size": [
+      1122,
+      1402
+    ],
+    "sha256": "ecf085bc30f8d502aef8e93973c4d0fefcefc84dbfc45813b6f580c09b8e59b6"
+  },
+  {
+    "id": "gpt",
+    "path": "assets/art/crew-gpt-motion-v2-atlas.png",
+    "source": "exec-8daf7fd6-eb6d-4d68-9d2c-a957317f2ddd.png",
+    "reference": "assets/art/crew-gpt-atlas.png",
+    "size": [
+      1122,
+      1402
+    ],
+    "sha256": "7a86d5c5598be1046dc9736bc1b81e4bb08044ab5d447b6fae0058bda78afcf7"
+  },
+  {
+    "id": "gemini",
+    "path": "assets/art/crew-gemini-motion-v2-atlas.png",
+    "source": "exec-f87315fd-08ad-4a27-be4c-1fd3aa2c934a.png",
+    "reference": "assets/art/crew-gemini-atlas.png",
+    "size": [
+      1122,
+      1402
+    ],
+    "sha256": "920bde7f34d31fd71d08cc252ccb64db3ddc3bd2fe8f7b232b2c365c9e4e3900"
+  },
+  {
+    "id": "z",
+    "path": "assets/art/crew-z-motion-v2-atlas.png",
+    "source": "exec-a5ce1423-e5f5-4999-92ff-f82428f3d68c.png",
+    "reference": "assets/art/crew-z-atlas.png",
+    "size": [
+      1122,
+      1402
+    ],
+    "sha256": "7074f89953998fdd8c715ccb175224199d5a31ad65de26e76d63fad835a66e6b"
+  },
+  {
+    "id": "wenxin",
+    "path": "assets/art/crew-wenxin-motion-v2-atlas.png",
+    "source": "exec-e209bd27-8efc-4eeb-b979-64339f76ae81.png",
+    "reference": "assets/art/crew-wenxin-atlas.png",
+    "size": [
+      1122,
+      1402
+    ],
+    "sha256": "765b5cbe2c52e441dcb3c5de585eca81ffa0c2f9386c530028001bf13c5e010c"
+  },
+  {
+    "id": "kimi",
+    "path": "assets/art/crew-kimi-motion-v2-atlas.png",
+    "source": "exec-0b65badc-09d8-472c-9988-1fdb34d8eb5e.png",
+    "reference": "assets/art/crew-kimi-atlas.png",
+    "size": [
+      1122,
+      1402
+    ],
+    "sha256": "46ac2fbf027e17ffeb2cb4b3ad234a6d39808eea6fb4e736bd864f913e71e7bc"
+  },
+  {
+    "id": "tencent",
+    "path": "assets/art/crew-tencent-motion-v2-atlas.png",
+    "source": "exec-aa0e70bf-a663-457d-90cc-e7a132860b35.png",
+    "reference": "assets/art/crew-support-atlas.png",
+    "size": [
+      1122,
+      1402
+    ],
+    "sha256": "749ef85229f2414c09695ea1248372cae83e9c0e5556e1ab268266f61eb6981c"
+  },
+  {
+    "id": "grok",
+    "path": "assets/art/crew-grok-motion-v2-atlas.png",
+    "source": "exec-bb82c6cb-f258-450e-b2cc-d69acf10c998.png",
+    "reference": "assets/art/crew-support-atlas.png",
+    "size": [
+      1122,
+      1402
+    ],
+    "sha256": "ab42ff5836fb029ce2fb0a66676e87d650ee95cdf770bce72f02c92c260111b6"
+  },
+  {
+    "id": "mistral",
+    "path": "assets/art/crew-mistral-motion-v2-atlas.png",
+    "source": "exec-e1b94bdc-ab19-43da-aeba-3e7118d3671c.png",
+    "reference": "assets/art/crew-support-atlas.png",
+    "size": [
+      1122,
+      1402
+    ],
+    "sha256": "d982eff4a1f8edcaa8965075d36f324c437315033787e96bb96bf58c6bfe510b"
+  },
+  {
+    "id": "seed",
+    "path": "assets/art/crew-seed-motion-v2-atlas.png",
+    "source": "exec-5bf819d5-933e-4ba3-8f18-7fa921ec63e6.png",
+    "reference": "assets/art/crew-support-atlas.png",
+    "size": [
+      1122,
+      1402
+    ],
+    "sha256": "7776b3be573c3707d3d5e035d7a38734b8d0e178762b4b98c96e0ac8837e5926"
+  }
+]

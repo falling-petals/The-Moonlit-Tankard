@@ -1,0 +1,34 @@
+{
+  "checks": [
+    "only eight active character sheets preload in the game",
+    "reserve sprites do not preload",
+    "all employed and Tom management portraits use motion sheets",
+    "chat remains compact with a cropped expression portrait",
+    "normal player save remains untouched",
+    "thirteen characters have interactive motion previews",
+    "preview displays authored up frames",
+    "preview displays authored left frames",
+    "preview displays authored right frames",
+    "preview displays authored down frames",
+    "individual expression button selects angry pose",
+    "preview pause holds a walking frame across a full gait cycle",
+    "all reserve character images decode and render when scrolled into view",
+    "preview no horizontal overflow at 1024",
+    "preview no horizontal overflow at 1920",
+    "reduced-motion preview starts paused",
+    "no browser runtime errors"
+  ],
+  "errors": [],
+  "realAI": {
+    "calls": 1,
+    "seconds": 1.14,
+    "reply": "嘿嘿，店主夸得我耳朵都翘起来啦～我会继续加油的！",
+    "emotion": "happy",
+    "reusedFromPreviousRun": true
+  },
+  "screenshots": [
+    "screenshots/character-motion-real-chat.png",
+    "screenshots/character-motion-five-staff.png",
+    "screenshots/character-motion-expression-room.png"
+  ]
+}

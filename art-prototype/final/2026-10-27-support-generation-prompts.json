@@ -1,0 +1,14 @@
+{
+  "tool": "image_gen.imagegen built-in",
+  "transparent_background": true,
+  "jobs": [
+    {
+      "id": "support",
+      "prompt": "Use case: style-transfer. Input is user's existing pixel character lineup. Extract/reinterpret ONLY characters FOUR through SEVEN from left: Tencent the dark long-haired girl with red scarf and blue/white Chinese robe; Grok blonde twin-tail dark demon princess with small horns, red eyes, black/gold/burgundy dress and staff; Mistral orange long-haired fox-eared witch with burgundy pointed hat, cream/red/gold robe and broom; Seed purple bob-haired star magician with blue/white fantasy outfit and star wand. Output a clean 2x2 production pixel sprite asset sheet on TRUE transparent RGBA, top-left Tencent, top-right Grok, bottom-left Mistral, bottom-right Seed. Exactly ONE full-body front idle sprite per cell, consistent ~80px native sprite scale shown enlarged. Faithfully retain each identity with chunky square pixels, stepped dark outlines, flat 3tone shading, match input style, no extra ornaments, no text labels, no background/shadows/grid/watermark. Leave 15% fully transparent padding in each equal cell, all hair hats feet staffs inside cell. Four characters distinct and nonoverlapping. These are reserve art assets, not currently hired employees."
+    },
+    {
+      "id": "mouse",
+      "prompt": "Production pixel game sprite sheet for a cozy modern tavern cellar. ONE small friendly gray-brown mouse with rounded pink ears, tiny dark eyes, pink nose and thin tail, readable silhouette. Authentic chunky 16x16 to24x24 native pixel character shown enlarged with stepped dark brown outlines and 3tone shading, no antialiasing, no realism. Square2x2 sprite sheet: top-left left-facing idle mouse, top-right left-facing scurry frame1, bottom-left left-facing scurry frame2, bottom-right surprised mouse upright. Same mouse size/colors all cells. Exactly4sprites, generous15% transparent cell margins, true transparent RGBA background no shadows, grid, labels, watermarks or props. Gentle cute rodent not horror. All tails intact."
+    }
+  ]
+}

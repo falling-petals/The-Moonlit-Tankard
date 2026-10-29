@@ -2,6 +2,25 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRenderer} from '../src/render.js';
 import {createGame} from '../src/engine.js';
+test('renderer uses authored side/back motion frames, omits reserve preloads and falls back when a motion image fails',async()=>{
+  const original={fetch:globalThis.fetch,Image:globalThis.Image,window:globalThis.window};
+  const frames=Array.from({length:20},(_,i)=>({rect:[i*10,0,8,10],anchor:[4,10]}));
+  const asset=src=>({src,frames,referenceHeight:10});
+  const assets={'tavern-day':asset('day'),'tavern-night':asset('night'),'crew-deepseek-atlas':asset('legacy'),'crew-deepseek-motion-v2-atlas':asset('motion'),'crew-kimi-motion-v2-atlas':asset('reserve')};
+  const loaded=[],draws=[];globalThis.fetch=async()=>({ok:true,json:async()=>({assets})});
+  globalThis.Image=class{async decode(){loaded.push(this.src);if(this.src==='broken')throw new Error('missing motion');}};
+  globalThis.window={devicePixelRatio:1,matchMedia:()=>({matches:true})};
+  const ctx=new Proxy({measureText:text=>({width:text.length*10}),drawImage:(...args)=>draws.push(args)},{get:(o,k)=>k in o?o[k]:(()=>{})});
+  const canvas={getContext:()=>ctx,getBoundingClientRect:()=>({left:0,top:0,width:1280,height:800}),addEventListener(){}};
+  try{
+    const renderer=await createRenderer(canvas),s=createGame(),w=s.staff[0];w.x=300;w.y=600;
+    for(const [point,index] of [[{x:300,y:400},4],[{x:100,y:600},8],[{x:500,y:600},12]]){
+      w.path=[point];draws.length=0;renderer.draw(s,800);assert.equal(draws.find(d=>d[0].src==='motion')[1],index*10);
+    }
+    assert.ok(!loaded.includes('reserve'));assert.ok(!loaded.includes('legacy'));
+    assets['crew-deepseek-motion-v2-atlas'].src='broken';await createRenderer(canvas);assert.ok(loaded.includes('legacy'));
+  }finally{Object.assign(globalThis,original);}
+});
 test('cover camera keeps the player visible at every edge in narrow and ultrawide windows',async()=>{
   const original={fetch:globalThis.fetch,Image:globalThis.Image,window:globalThis.window};
   const ids=['tavern-day','tavern-night','player-atlas','staff-atlas','customers-atlas','furniture-atlas','items-atlas'];

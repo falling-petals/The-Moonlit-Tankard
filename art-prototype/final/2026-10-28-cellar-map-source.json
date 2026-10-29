@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-28",
+  "source": "User-provided cellar map",
+  "originalFilename": "codex-clipboard-e7a8ac92-eb5e-4df8-b435-07ba9ec5096d.jpg",
+  "path": "assets/art/cellar-room.jpg",
+  "sha256": "92092057e53a5249852aba8af457c8425a9dae453bce9b5396a145f60345382a",
+  "sourceRect": [
+    24,
+    21,
+    816,
+    530
+  ],
+  "worldSize": [
+    816,
+    530
+  ],
+  "processing": "Original JPEG bytes retained. The scene reads its inner map rectangle at runtime; no generated or edited replacement."
+}

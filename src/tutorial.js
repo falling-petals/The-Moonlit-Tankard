@@ -195,7 +195,7 @@ export function mountGuide({project,paint,blocked=()=>false,aiReady=()=>true}={}
   const root=document.createElement('div');
   root.id='guide-root';
   root.innerHTML=`<aside class="guide-card" hidden aria-live="polite">
-  <header class="guide-head"><span class="guide-avatar"></span><div class="guide-name"><b>青芽</b><small>伙伴 <span class="guide-count"></span></small></div><button class="guide-close" type="button" aria-label="关闭引导">×</button></header>
+  <header class="guide-head"><span class="guide-avatar"></span><div class="guide-name"><b>DeepSeek</b><small>伙伴 <span class="guide-count"></span></small></div><button class="guide-close" type="button" aria-label="关闭引导">×</button></header>
   <div class="guide-track"><i></i></div>
   <p class="guide-text"></p>
   <p class="guide-action"></p>
@@ -205,7 +205,7 @@ export function mountGuide({project,paint,blocked=()=>false,aiReady=()=>true}={}
   const card=root.querySelector('.guide-card'),textEl=root.querySelector('.guide-text'),
     actionEl=root.querySelector('.guide-action'),ring=root.querySelector('.guide-ring'),
     countEl=root.querySelector('.guide-count'),trackEl=root.querySelector('.guide-track i');
-  root.querySelector('.guide-avatar').innerHTML=art('staff-atlas',0,30);
+  root.querySelector('.guide-avatar').innerHTML=art('crew-deepseek-atlas',0,30);
   paint?.(root);
 
   let guide=load(),shown=null,shownCard=false,cardAt=0,state=null,graduated=false;
@@ -273,7 +273,7 @@ export function mountGuide({project,paint,blocked=()=>false,aiReady=()=>true}={}
       <h2>店，交给你了。</h2>
       <p class="finale-line">灯怎么开、客人怎么待，往后的日子听你的。</p>
       <p class="finale-stats">第 ${day} 天 · 一起招待了 ${served} 桌 · 学会 ${learned} 件事</p>
-      <p class="finale-sign">—— 青芽</p>
+      <p class="finale-sign">—— DeepSeek</p>
       <button class="finale-cta" type="button">我自己来</button>
     </article>`;
     root.append(el);

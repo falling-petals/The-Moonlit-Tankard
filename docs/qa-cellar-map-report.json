@@ -1,0 +1,32 @@
+{
+  "checks": [
+    "floor hatch is locked before cellar milestone",
+    "owner approaches upstairs hatch and enters cellar",
+    "three actual workers appear on supplied room map",
+    "management drawers start closed",
+    "supplied map has nonblank rendered pixels",
+    "owner walks around island to clicked cellar floor",
+    "click employee approaches and opens compact scene chat",
+    "Escape closes chat while retaining cellar room",
+    "supplies cancel pending dialogue instead of reopening it",
+    "actual replenishment animates staff on room map",
+    "shared simulation actually replenishes target twelve portions",
+    "actual procurement only costs seventy-two gold",
+    "pause freezes owner walking in cellar",
+    "real mice have small clickable map sprites",
+    "clicking map mouse removes exactly one real pest",
+    "Tom and Gemini act on actual pest state",
+    "removed aging menu no longer appears",
+    "one shared supply policy opens over map",
+    "Escape closes supply without leaving map",
+    "upstairs control restores tavern room",
+    "normal save untouched",
+    "zero browser runtime errors"
+  ],
+  "errors": [],
+  "screenshots": [
+    "screenshots/cellar-upper-left-entrance.png",
+    "screenshots/cellar-map-working.png",
+    "screenshots/cellar-map-mice.png"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "checks": [
+    "real model candidate plan applied to actual worker policy",
+    "reload retains preferred name and real model recalls it",
+    "real model confirms applied policy without asking to apply it again",
+    "normal save untouched",
+    "API key excluded from game state",
+    "dialogue remains compact"
+  ],
+  "errors": [],
+  "realAI": {
+    "calls": 2,
+    "firstSeconds": 1.38,
+    "partialUpdates": 18,
+    "firstReply": "哎呀，小何～收桌当然要优先啦！我这就提个‘清洁优先’的安排，等你点应用哦～",
+    "recallReply": "记得啦，小何～现在是清洁优先，收桌最要紧，已经生效咯。"
+  }
+}

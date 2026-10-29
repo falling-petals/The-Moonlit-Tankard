@@ -1,14 +1,29 @@
-import {WORLD,DRINKS,REQUESTS,staffDefinition} from './content.js';
+import {WORLD,DRINKS,REQUESTS,STAFF,staffDefinition} from './content.js';
 import {drinkInfo} from './progression.js';
+import {createCharacterAnimator,motionAtlas,EXPRESSION_FRAMES} from './character-animation.js';
 
 export async function createRenderer(canvas){
   const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=false;
   const manifest=await fetch('assets/manifest.json').then(r=>{if(!r.ok)throw new Error('图集清单读取失败');return r.json();});
   const images={};
-  await Promise.all(Object.entries(manifest.assets).filter(([id])=>id!=='zone-studies').map(async([id,a])=>{
+  const activeCrew=new Set([...STAFF.map(d=>d.atlas),'crew-tom-atlas']);
+  const activeMotion=new Set([...activeCrew].map(motionAtlas));
+  const preload=id=>{
+    if(['zone-studies','community-lineup'].includes(id))return false;
+    if(id.endsWith('-motion-v2-atlas'))return activeMotion.has(id);
+    if(id.startsWith('crew-')&&id!=='crew-mouse-atlas')return activeCrew.has(id)&&!manifest.assets[motionAtlas(id)];
+    return true;
+  };
+  async function loadAsset(id,a){
     const img=new Image();img.src=a.src;
-    try {await img.decode();images[id]=img;}catch(error){if(id!=='event-atlas')throw error;}
-  }));
+    try {await img.decode();images[id]=img;}catch(error){
+      const legacy=id.endsWith('-motion-v2-atlas')?id.replace('-motion-v2-atlas','-atlas'):null;
+      if(legacy&&manifest.assets[legacy])return loadAsset(legacy,manifest.assets[legacy]);
+      if(id!=='event-atlas')throw error;
+    }
+  }
+  await Promise.all(Object.entries(manifest.assets).filter(([id])=>preload(id)).map(([id,a])=>loadAsset(id,a)));
+  const animator=createCharacterAnimator();
   let latest=null,hover=null,night=0,zoom=1;
   const motion=window.matchMedia?.('(prefers-reduced-motion: reduce)');
   const camera={scale:1,x:0,y:0,width:WORLD.width,height:WORLD.height};
@@ -35,9 +50,10 @@ export async function createRenderer(canvas){
   function frame(atlas,index){return manifest.assets[atlas]?.frames?.[index];}
   function art(target,atlas,index,x,y,height,width=null,flip=false){
     const f=frame(atlas,index);if(!f||!images[atlas])return;
-    const [sx,sy,sw,sh]=f.rect,h=height,w=width??sw/sh*h;
+    const [sx,sy,sw,sh]=f.rect,reference=manifest.assets[atlas].referenceHeight;
+    const scale=reference&&width===null?height/reference:height/sh,h=sh*scale,w=width??sw*scale;
     if(flip){target.save();target.translate(x,0);target.scale(-1,1);x=0;}
-    target.drawImage(images[atlas],sx,sy,sw,sh,Math.round(x-w/2),Math.round(y-h),Math.round(w),Math.round(h));
+    target.drawImage(images[atlas],sx,sy,sw,sh,Math.round(x-(f.anchor?f.anchor[0]*scale:w/2)),Math.round(y-(f.anchor?f.anchor[1]*scale:h)),Math.round(w),Math.round(h));
     if(flip)target.restore();
   }
   function icon(target,index,x,y,size){const f=frame('items-atlas',index);if(!f||!images['items-atlas'])return;const [sx,sy,sw,sh]=f.rect;
@@ -48,6 +64,10 @@ export async function createRenderer(canvas){
     const [sx,sy,sw,sh]=f.rect,scale=Math.min(size/sw,size/sh);target.drawImage(images[atlas],sx,sy,sw,sh,x-sw*scale/2,y-sh*scale/2,sw*scale,sh*scale);
   }
   function eventIcon(index,x,y,size){art(ctx,'event-atlas',index,x,y+size/2,size);}
+  function drawCellarMap(target){
+    const entry=manifest.assets['cellar-room'],img=images['cellar-room'];if(!entry||!img)return;
+    const [x,y,w,h]=entry.sourceRect??[24,21,816,530];target.drawImage(img,x,y,w,h,0,0,816,530);
+  }
   function rounded(x,y,w,h,r=9){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
   function pill(x,y,text,{fill='#282421ed',color='#f0e6d3',size=18}={}){
     ctx.font=`500 ${size}px "Microsoft YaHei",sans-serif`;const width=ctx.measureText(text).width+26;
@@ -152,6 +172,10 @@ export async function createRenderer(canvas){
     collectEffects(s,time,reduced);
     ctx.clearRect(0,0,WORLD.width,WORLD.height);ctx.globalAlpha=1;ctx.drawImage(images['tavern-day'],0,0,WORLD.width,WORLD.height);
     if(n>0){ctx.globalAlpha=n;ctx.drawImage(images['tavern-night'],0,0,WORLD.width,WORLD.height);ctx.globalAlpha=1;}
+    // A small floor hatch in the upper-left aisle is the cellar entrance.
+    ctx.save();ctx.translate(260,343);ctx.fillStyle='#241d1c';ctx.beginPath();ctx.roundRect(-47,-21,94,45,5);ctx.fill();ctx.strokeStyle=s.milestones.includes('cellar')?'#b88d50':'#6b6253';ctx.lineWidth=3;ctx.stroke();
+    for(let i=0;i<5;i++){ctx.fillStyle=i%2?'#594532':'#71583d';ctx.fillRect(-37+i*5,-13+i*7,72-i*10,5);}ctx.restore();
+    if(hover?.type==='cellar')pill(260,277,s.milestones.includes('cellar')?'酒窖 ↓':'三星开放酒窖',{size:14});
     const objects=[];
     // Quiet decor belongs below the feet-sorted objects.
     art(ctx,'furniture-atlas',14,768,805,130,155);
@@ -189,9 +213,12 @@ export async function createRenderer(canvas){
     }
     for(const w of s.staff){
       const def=staffDefinition(w.id),moving=w.path.length>0,row=moving?(w.path[0].y<w.y-10?3:1+Math.floor(time/150)%2):0;
+      const motion=motionAtlas(def.atlas),pose=animator.pose(w,time,{paused:s.paused,reduced,facePoint:w.chatWith==='player'?s.player:null});
       objects.push({y:w.y,draw:()=>{
         ctx.fillStyle='#15252355';ctx.beginPath();ctx.ellipse(w.x,w.y-3,21,8,0,0,Math.PI*2);ctx.fill();
-        art(ctx,'staff-atlas',row*4+def.column,w.x,w.y+(moving&&!reduced?Math.sin(time/80)*2:0),77);
+        const custom=def.atlas&&images[def.atlas];
+        if(images[motion])art(ctx,motion,pose.frame,w.x,w.y,86);
+        else art(ctx,custom?def.atlas:'staff-atlas',custom?row:row*4+def.column,w.x,w.y+(moving&&!reduced&&!s.paused?Math.sin(time/80)*1:0),86,null,moving&&row!==3&&w.path[0].x<w.x-8);
         workGesture(w,time,reduced);
         if(w.job?.stage==='deliver')icon(ctx,10,w.x+29,w.y-33,34);
       }});
@@ -250,6 +277,7 @@ export async function createRenderer(canvas){
     const rect=canvas.getBoundingClientRect(),x=(clientX-rect.left-camera.width/2)/camera.scale+camera.x,y=(clientY-rect.top-camera.height/2)/camera.scale+camera.y;
     if(!Number.isFinite(x)||!Number.isFinite(y))return null;
     const worker=latest.staff.find(w=>Math.hypot(w.x-x,w.y-38-y)<45);if(worker)return {type:'staff',id:worker.id,x:worker.x,y:worker.y};
+    if(Math.abs(x-260)<48&&Math.abs(y-343)<28)return {type:'cellar',id:'cellar',x:260,y:365};
     for(const t of latest.tables){
       if(t.enabled===false)continue;
       if(t.status==='dirty'&&Math.hypot(x-t.x-95,y-t.y-82)<17)return {type:'service',id:t.id,x:t.x+95,y:t.y+82};
@@ -265,10 +293,15 @@ export async function createRenderer(canvas){
   canvas.addEventListener('pointerleave',()=>hover=null);
   function paint(container=document){
     container.querySelectorAll('canvas[data-art]').forEach(c=>{
-      const target=c.getContext('2d'),atlas=c.dataset.art,index=Number(c.dataset.frame||0);target.clearRect(0,0,c.width,c.height);target.imageSmoothingEnabled=false;
-      const f=frame(atlas,index);if(!f||!images[atlas])return;const [sx,sy,sw,sh]=f.rect,scale=Math.min(c.width/sw,c.height/sh)*.92;
+      let atlas=c.dataset.art,index=Number(c.dataset.frame||0);const motion=motionAtlas(atlas);
+      if(motion&&images[motion]){atlas=motion;index=c.dataset.emotion?EXPRESSION_FRAMES[c.dataset.emotion]??0:c.dataset.motionFrame?Number(c.dataset.motionFrame):[0,1,2,4][index]??0;}
+      const target=c.getContext('2d');target.clearRect(0,0,c.width,c.height);target.imageSmoothingEnabled=false;
+      const f=frame(atlas,index);if(!f||!images[atlas])return;let [sx,sy,sw,sh]=f.rect;
+      if(c.dataset.portrait==='true'){sx+=Math.round(sw*.18);sw=Math.round(sw*.64);sh=Math.round(sh*.48);}
+      const scale=Math.min(c.width/sw,c.height/sh)*.92;
       target.drawImage(images[atlas],sx,sy,sw,sh,(c.width-sw*scale)/2,(c.height-sh*scale)/2,sw*scale,sh*scale);
+      c.dataset.renderedAtlas=atlas;c.dataset.renderedFrame=String(index);
     });
   }
-  return {draw,hitTest,paint,project,get camera(){return {...camera,zoom};},get night(){return night;}};
+  return {draw,hitTest,paint,project,drawCellarMap,drawSprite:art,get camera(){return {...camera,zoom};},get night(){return night;}};
 }

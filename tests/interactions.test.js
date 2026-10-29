@@ -4,6 +4,17 @@ import {createGame,createEmployee} from '../src/engine.js';
 import {createInteractions} from '../src/interactions.js';
 
 const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
+test('one dialogue call drives thinking and returned expression without creating another request',async()=>{
+  let finish;const s=createGame(),w=s.staff[0];let calls=0;
+  const ai=createInteractions({getState:()=>s,getConfig:()=>({key:'test-only',auto:false}),now:()=>1000,requestReply:()=>{calls++;return new Promise(resolve=>finish=resolve);}});
+  const pending=ai.ask(w.id,'今天开心吗');assert.equal(w.expression,'thinking');finish({speech:'好呀！',emotion:'happy'});await pending;
+  assert.equal(w.expression,'happy');assert.equal(calls,1);assert.equal(w.expressionUntil,12000);
+});
+test('cancelling an in-flight chat clears its thinking pose and ignores a late expression',async()=>{
+  let finish;const s=createGame(),w=s.staff[0];
+  const ai=createInteractions({getState:()=>s,getConfig:()=>({key:'test-only',auto:false}),requestReply:()=>new Promise(resolve=>finish=resolve)});
+  const pending=ai.ask(w.id,'聊聊');ai.abort();assert.equal(w.expression,'neutral');finish({speech:'太好了！',emotion:'happy'});await pending;assert.equal(w.expression,'neutral');
+});
 function setup(requestReply=async()=>({speech:'今天这阵忙完，一起看看窗外吧。',memory:'',suggestion:null})){
   let state=createGame(),time=200000;state.phase='open';state.elapsed=150;
   state.staff.push(createEmployee('tuantuan',1));

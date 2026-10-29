@@ -1,0 +1,90 @@
+{
+  "image": "../../assets/art/whale-maid-staff-v1.png",
+  "size": [
+    1254,
+    1254
+  ],
+  "layout": "2x2",
+  "frames": [
+    {
+      "name": "idle-front",
+      "cell": [
+        0,
+        0,
+        627,
+        627
+      ],
+      "rect": [
+        71,
+        30,
+        539,
+        597
+      ],
+      "anchor": [
+        0.5,
+        1.0
+      ]
+    },
+    {
+      "name": "walk-a",
+      "cell": [
+        627,
+        0,
+        627,
+        627
+      ],
+      "rect": [
+        693,
+        47,
+        518,
+        580
+      ],
+      "anchor": [
+        0.5,
+        1.0
+      ]
+    },
+    {
+      "name": "walk-b",
+      "cell": [
+        0,
+        627,
+        627,
+        627
+      ],
+      "rect": [
+        90,
+        636,
+        523,
+        583
+      ],
+      "anchor": [
+        0.5,
+        1.0
+      ]
+    },
+    {
+      "name": "idle-back",
+      "cell": [
+        627,
+        627,
+        627,
+        627
+      ],
+      "rect": [
+        675,
+        648,
+        543,
+        572
+      ],
+      "anchor": [
+        0.5,
+        1.0
+      ]
+    }
+  ],
+  "rendering": "nearest-neighbor",
+  "identity": "Blue-haired whale maid from user reference; name, personality and skills pending.",
+  "integration": "Standalone employee visual asset; not yet assigned to an existing staff ID.",
+  "bounds_note": "Visible bounds use alpha >=16 plus 2px padding; source PNG alpha is preserved without alteration. Trim frames independently and align their bottom-center anchors for playback."
+}

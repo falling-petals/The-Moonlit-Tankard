@@ -1,0 +1,9 @@
+{
+  "checks": [
+    "cellar and actors fit 1024x768",
+    "cellar and actors fit 1920x1080",
+    "clicking actual map stairs returns upstairs",
+    "bottom menu still enters cellar directly"
+  ],
+  "errors": []
+}

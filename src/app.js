@@ -1,5 +1,5 @@
 import {createGame,advance,act,STATIONS,cellarOpen} from './engine.js';
-import {DRINKS,ROLE_NAMES,staffDefinition,gameClock,DAY_LENGTH,TABLE_COSTS,REQUESTS,STAR_STEPS} from './content.js';
+import {DRINKS,ROLE_NAMES,staffDefinition,gameClock,DAY_LENGTH,TABLE_COSTS,REQUESTS,STAR_STEPS,allWorkers} from './content.js';
 import {loadGame,parseGame,publicSave,SAVE_KEY} from './storage.js';
 import {DEFAULT_CONFIG,consumeBootstrap} from './ai.js';
 import {createInteractions} from './interactions.js';
@@ -10,35 +10,42 @@ import {recipesView,nightView,drawReveal,liveProgress,drinksView} from './party-
 import * as view from './views.js';
 import {introMode,playIntro} from './intro.js';
 import {mountGuide} from './tutorial.js';
-import {createCellarUI} from './cellar.js';
+import {createCellarUI,releasePreviousChat} from './cellar.js';
+import {pinMemory,forgetMemory,addMemory} from './memory.js';
+import {debugEnabled,debugSaveKey,initialDebugSave,createDebugUI} from './debug.js';
+import {characterEmotion,emotionFromText} from './character-animation.js';
+import {updateStockPanel} from './stock-panel.js';
 const $=selector=>document.querySelector(selector);
 const read=(storage,key)=>{try{return storage.getItem(key);}catch{return null;}};
 const parse=raw=>{try{return JSON.parse(raw)||{};}catch{return {};}};
 const write=(storage,key,value)=>{try{storage.setItem(key,value);return true;}catch{return false;}};
-let state=loadGame(read(localStorage,SAVE_KEY));
+const debugging=debugEnabled(location.search),saveKey=debugSaveKey(location.search);
+let state=loadGame(debugging?initialDebugSave(localStorage):read(localStorage,SAVE_KEY));
 let config={...DEFAULT_CONFIG,...parse(read(localStorage,'moonlit-preferences')),...parse(read(sessionStorage,'moonlit-ai-session'))};
 const bootstrap=consumeBootstrap(location,history);if(bootstrap)config={...config,...bootstrap};
 write(sessionStorage,'moonlit-ai-session',JSON.stringify(config));
 let renderer=null,modalState=null,lighting='auto',toastTimer=null,summaryShown=0,shownInteraction='',hotspotSignature='',pendingVisit=null,panelStamp='',bannerTimer=null;
-let introActive=false,cellarActive=false,previous=performance.now(),loopStarted=false,guide=null,cellar=null;
+let introActive=false,cellarActive=false,previous=performance.now(),loopStarted=false,guide=null,cellar=null,pendingFloorChat=null;
 const audio=createAudio();audio.setMuted(read(localStorage,'moonlit-muted')==='1');
 const seenEvents=new Set(state.events.map(e=>e.id));
 const panelStations={menu:'ledger',recipes:'ledger',night:'events',staff:'hire',stock:'inventory',upgrade:'upgrades',events:'events'};
 const stationPanels={ledger:'menu',inventory:'stock',hire:'staff',upgrades:'upgrade',events:'night'};
 const stationLabels={ledger:'饮品菜单',hire:'寻找伙伴',inventory:'原料柜',upgrades:'布置手册',events:'活动手记'};
-function save(){const ok=write(localStorage,SAVE_KEY,publicSave(state));$('#save-state').textContent=ok?'进度已自动保存':'请导出存档保留进度';return ok;}
+function save(){const ok=write(localStorage,saveKey,publicSave(state));$('#save-state').textContent=ok?'进度已自动保存':'请导出存档保留进度';return ok;}
 function toast(text,error=false){const el=$('#toast');el.textContent=text;el.className='toast show'+(error?' error':'');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3200);}
-const ai=createInteractions({getState:()=>state,getConfig:()=>config,onUpdate:()=>{renderAI();refreshChat();if(!ai.status.busy)save();},onError:message=>toast(message,true)});
+const ai=createInteractions({getState:()=>state,getConfig:()=>config,getArea:()=>cellarActive?'cellar':'floor',onUpdate:()=>{renderAI();refreshChat();if(!ai.status.busy)save();},onError:message=>toast(message,true)});
 function renderAI(){const s=ai.status;$('#ai-dot').className='status-dot'+(s.busy?' busy':s.error?' error':!config.key?' offline':'');$('#ai-status').textContent=s.busy?`${staffDefinition(s.staff)?.name||'伙伴'}正在回应…`:s.error?'连接暂不可用':s.connected?'伙伴已连接':config.key?'伙伴已就绪':'连接AI伙伴';}
 function refreshChat(){
-  if(modalState?.panel!=='chat')return;const w=state.staff.find(w=>w.id===modalState.id);if(!w||!$('#dialogue-reply'))return;
+  if(modalState?.panel!=='chat')return;const w=allWorkers(state).find(w=>w.id===modalState.id);if(!w||!$('#dialogue-reply'))return;
   const last=w.conversation.filter(m=>m.role==='staff'&&(!m.kind||m.kind==='player')).at(-1);
   const replying=ai.status.busy&&ai.status.staff===w.id&&ai.status.lastKind==='player';
   $('#dialogue-reply').textContent=replying?(ai.status.partial||'…'):last?.text||staffDefinition(w.id).greeting;
   $('#dialogue-reply').classList.toggle('dialogue-reply-stream',replying);
+  const avatar=$('.dialogue-avatar canvas'),emotion=replying?'thinking':ai.status.error?'sad':characterEmotion(w)==='neutral'?emotionFromText(last?.text??''):characterEmotion(w);
+  if(avatar&&avatar.dataset.emotion!==emotion){avatar.dataset.emotion=emotion;renderer?.paint($('.dialogue-avatar'));}
   $('#chat-send').disabled=(ai.status.busy&&['player','test'].includes(ai.status.lastKind))||!config.key;
   $('#chat-hint').textContent=!config.key?'在设置中连接 AI 伙伴。':replying?'正在回应…':ai.status.error||'';$('#chat-hint').hidden=!$('#chat-hint').textContent;
-  const memories=$('#dialogue-memories');if(memories)memories.innerHTML=view.memoriesView(w);
+  const memories=$('#dialogue-memories');if(memories){const html=view.memoriesView(w);if(memories.innerHTML!==html&&!memories.contains(document.activeElement))memories.innerHTML=html;}
   const suggestion=$('#dialogue-suggestion');
   if(suggestion)suggestion.innerHTML=!replying&&w.suggestion?`<button class="suggestion-button" data-action="accept-suggestion" data-suggestion="${view.esc(w.suggestion)}">${({party:'一起筹备派对 ↗',tasting:'一起筹备派对 ↗',recipe:'看看适合今晚的秘方 ↗',quick:'看看快饮经营路线 ↗',premium:'看看精品经营路线 ↗'})[w.suggestion]||'看看今晚的安排 ↗'}</button>`:'';
 }
@@ -47,8 +54,8 @@ function closeModal({release=true}={}){
   $('#modal-root').innerHTML='';$('#dialogue-root').innerHTML='';modalState=null;if(release){act(state,{type:'end-interaction'});shownInteraction='';}
 }
 function openChat(id){
-  const w=state.staff.find(w=>w.id===id),d=staffDefinition(id);if(!w)return;closeModal({release:false});w.chatWith='player';modalState={panel:'chat',id};
-  $('#dialogue-root').innerHTML=`<section class="dialogue-box context-card" role="dialog" aria-label="和${d.name}聊聊"><header class="context-header"><div class="dialogue-avatar">${view.art('staff-atlas',d.column,32)}</div><div class="dialogue-name">${d.name}<small>${d.skill}</small></div><button class="close-button" data-action="close-modal" aria-label="结束交谈">×</button></header><p id="dialogue-reply"></p><div class="dialogue-choices"><button data-action="quick-chat" data-message="今天的工作感觉怎么样？">聊聊今天</button><button data-action="quick-chat" data-message="今晚有什么小活动的灵感？">今晚的安排</button></div><form id="chat-form"><textarea id="chat-input" rows="1" maxlength="500" aria-label="给伙伴的话" placeholder="跟${d.name}说句话…"></textarea><button id="chat-send" class="primary-button" type="submit">发送</button></form><div id="chat-hint" class="chat-hint"></div><div id="dialogue-suggestion"></div><details class="dialogue-details"><summary>记忆与分工</summary><label>岗位 <select id="staff-role" data-staff="${id}" aria-label="${d.name}的岗位">${Object.entries(ROLE_NAMES).map(([key,name])=>`<option value="${key}" ${w.role===key?'selected':''}>${name}</option>`).join('')}</select></label><div id="dialogue-memories"></div></details></section>`;
+  const w=allWorkers(state).find(w=>w.id===id),d=staffDefinition(id);if(!w)return;if(modalState?.panel==='chat'&&modalState.id!==id){ai.abort();releasePreviousChat(allWorkers(state),modalState.id,id);}closeModal({release:false});w.chatWith='player';w.socialUntil=0;modalState={panel:'chat',id};
+  $('#dialogue-root').innerHTML=`<section class="dialogue-box context-card" role="dialog" aria-label="和${d.name}聊聊"><header class="context-header"><div class="dialogue-avatar">${view.art(d.atlas,d.frame,32,'data-portrait="true"')}</div><div class="dialogue-name">${d.name}<small>${d.skill}</small></div><button class="close-button" data-action="close-modal" aria-label="结束交谈">×</button></header><p id="dialogue-reply"></p><div class="dialogue-choices"><button data-action="quick-chat" data-message="今天的工作感觉怎么样？">聊聊今天</button><button data-action="quick-chat" data-message="今晚有什么小活动的灵感？">今晚的安排</button></div><form id="chat-form"><textarea id="chat-input" rows="1" maxlength="500" aria-label="给伙伴的话" placeholder="跟${d.name}说句话…"></textarea><button id="chat-send" class="primary-button" type="submit">发送</button></form><div id="chat-hint" class="chat-hint"></div><div id="dialogue-suggestion"></div><details class="dialogue-details"><summary>记忆与分工</summary><label>岗位 <select id="staff-role" data-staff="${id}" aria-label="${d.name}的岗位">${Object.entries(view.rolesFor(d)).map(([key,name])=>`<option value="${key}" ${w.role===key?'selected':''}>${name}</option>`).join('')}</select></label><div id="dialogue-memories"></div></details></section>`;
   renderer?.paint($('#dialogue-root'));refreshChat();positionContext();save();
 }
 function tablePanel(id){
@@ -68,8 +75,9 @@ function tablePanel(id){
 }
 function positionContext(){
   if(!renderer||!['chat','table'].includes(modalState?.panel))return;
+  if(cellarActive&&modalState.panel==='chat'){const actor=document.querySelector(`.cellar-actor[data-staff="${modalState.id}"]`),r=actor?.getBoundingClientRect(),root=$('#dialogue-root');if(r){root.style.left=Math.max(12,Math.min(innerWidth-332,(actor.closest('.cellar-crew')?.getBoundingClientRect().right??r.right)+12))+'px';root.style.top=Math.max(110,Math.min(innerHeight-root.offsetHeight-24,r.top))+'px';}return;}
   let anchor;
-  if(modalState.panel==='chat'){const w=state.staff.find(w=>w.id===modalState.id);if(w)anchor={x:w.x,y:w.y-65};}
+  if(modalState.panel==='chat'){const w=allWorkers(state).find(w=>w.id===modalState.id);if(w)anchor={x:w.x,y:w.y-65};}
   else {const t=state.tables.find(t=>t.id===modalState.id);if(t)anchor=t.guest?{x:t.guest.x,y:t.guest.y-70}:{x:t.x+95,y:t.y+82};}
   if(!anchor)return;const root=$('#dialogue-root'),point=renderer.project(anchor),width=root.offsetWidth||320,height=root.offsetHeight||220;
   const right=point.x+45+width<innerWidth-16,left=right?point.x+45:point.x-width-45;
@@ -85,15 +93,17 @@ function openPanel(panel,id=null){
   if(panel==='reset')html=view.modal({title:'从第一杯重新开始？',subtitle:'将覆盖这台设备的经营进度，新手引导和开场邀请函也会跟着重来。',body:'<p class="muted">可以先导出存档留念。</p>',footer:'<button class="outline-button" data-action="export">导出存档</button><button class="primary-button" data-action="reset">确认重新开始</button>'});
   if(panel==='table'){$('#dialogue-root').innerHTML=html;renderer?.paint($('#dialogue-root'));positionContext();panelStamp=progressPanelStamp();return;}
   $('#modal-root').innerHTML=html;const sheet=$('#modal-root .modal');if(sheet)sheet.dataset.panel=panel;
+  if(panel==='stock')sheet.closest('.modal-backdrop').classList.add('stock-backdrop');
   if(['menu','recipes','staff','stock','upgrade','night'].includes(panel))$('#modal-root .modal-header').insertAdjacentHTML('afterend',`<nav class="modal-tabs" aria-label="管理分类">${Object.entries({menu:'菜单',recipes:'秘方',staff:'伙伴',stock:'原料',upgrade:'扩建',night:'今夜'}).map(([id,label])=>`<button data-action="visit" data-panel="${id}" class="${panel===id?'active':''}">${label}</button>`).join('')}</nav>`);
-  renderer?.paint($('#modal-root'));if(panel==='settings')$('#api-key').value=config.key||'';panelStamp=progressPanelStamp();
+  renderer?.paint($('#modal-root'));if(panel==='settings')$('#api-key').value=config.key||'';if(panel==='stock')updateStockPanel(sheet,state);panelStamp=progressPanelStamp();
 }
 function perform(action,{refresh=true,notify=true}={}){
   const result=act(state,action);if(notify)toast(result.message,!result.ok);save();
-  if(refresh&&result.ok&&modalState&&!['chat','settings','summary','close'].includes(modalState.panel)){const {panel,id}=modalState;openPanel(panel,id);}renderUI();return result;
+  if(refresh&&result.ok&&modalState&&!['chat','settings','summary','close','stock'].includes(modalState.panel)){const {panel,id}=modalState;openPanel(panel,id);}renderUI();return result;
 }
 function visit(panel){openPanel(panel);}
 function approach(target,desiredPanel=null){
+  if(target.kind==='station'&&target.id==='cellar'&&!cellarOpen(state)){toast('地窖还锁着 —— 等第三颗星亮起来。',true);return;}
   closeModal();pendingVisit=desiredPanel;
   if(target.kind==='table'){
     if(state.player.carrying?.table===target.id){perform({type:'player-deliver',table:target.id},{notify:false,refresh:false});return;}
@@ -106,7 +116,7 @@ function progressPanelStamp(){
   if(modalState?.panel==='table'){
     const t=state.tables.find(t=>t.id===modalState.id);return JSON.stringify([modalState.id,t?.status,t?.worker,t?.order?.paid,t?.request,t?.enabled,Math.ceil(t?.patience||0),state.player.job?.suspended]);
   }
-  if(['stock','menu'].includes(modalState?.panel))return JSON.stringify([modalState.panel,state.stock,state.menu,state.gold,state.phase,state.tables.map(t=>[t.id,t.status,t.order?.drink])]);
+  if(['stock','menu'].includes(modalState?.panel))return JSON.stringify([modalState.panel,state.stock,state.menu,state.gold,state.phase,state.upgrades.cellar,modalState.panel==='stock'?[state.cellar.automation.enabled,state.cellar.automation.budget,state.cellar.automation.spent,state.cellar.automation.rules,state.cellar.workers.length,state.paused]:null,state.tables.map(t=>[t.id,t.status,t.order?.drink,t.order?.quantity])]);
   if(!['recipes','night'].includes(modalState?.panel))return '';
   const p=state.progression;return JSON.stringify([modalState.panel,p.inspiration,p.collection,p.equipped,p.strategy,p.party,p.goals,p.combo.rewarded,p.combo.best,state.gold,state.stats.served,state.phase,p.party.status==='active'?Math.floor(state.elapsed):0]);
 }
@@ -130,7 +140,10 @@ function renderProgress(){
     const table=state.tables.find(t=>t.id===modalState.id);
     if(!table||['leaving','empty'].includes(table.status))closeModal();
   }
-  const stamp=progressPanelStamp();if(stamp&&stamp!==panelStamp){const scroll=$('#modal-root .modal-content')?.scrollTop||0,{panel,id}=modalState;openPanel(panel,id);const body=$('#modal-root .modal-content');if(body)body.scrollTop=scroll;}
+  const stamp=progressPanelStamp();if(stamp&&stamp!==panelStamp){
+    if(modalState.panel==='stock'){updateStockPanel($('#modal-root .modal'),state);panelStamp=stamp;}
+    else {const scroll=$('#modal-root .modal-content')?.scrollTop||0,{panel,id}=modalState;openPanel(panel,id);const body=$('#modal-root .modal-content');if(body)body.scrollTop=scroll;}
+  }
 }
 function renderUI(){
   $('#gold').textContent=state.gold.toLocaleString('zh-CN');$('#reputation').textContent=state.reputation.toFixed(2);$('#day').textContent=String(state.day).padStart(2,'0');
@@ -149,7 +162,7 @@ function renderUI(){
   if(j?.suspended){$('#player-status').textContent='店长 · 工作暂放在原处';$('#player-task').textContent='进度和原料留着，随时回去继续。';}
   $('#carry-status').innerHTML=p.carrying?`端着 ${drinkInfo(state,p.carrying.drink).name} × ${p.carrying.quantity} <button data-action="cancel-player">交还伙伴</button>`:j?`照看 ${j.table.slice(1)} 号桌 ${j.suspended?'<button data-action="resume-player">继续工作</button>':''}<button data-action="cancel-player">交还伙伴</button>`:'双手空着 · 随时帮把手';
   const interaction=p.interaction,key=interaction?interaction.kind+':'+interaction.id:'';
-  if(key&&key!==shownInteraction){shownInteraction=key;if(interaction.kind==='staff')openChat(interaction.id);else if(interaction.kind==='table')openPanel('table',interaction.id);else {const panel=pendingVisit||stationPanels[interaction.id];pendingVisit=null;openPanel(panel);}}if(!key)shownInteraction='';
+  if(key&&key!==shownInteraction){shownInteraction=key;if(interaction.kind==='staff')openChat(interaction.id);else if(interaction.kind==='table')openPanel('table',interaction.id);else if(interaction.id==='cellar'){pendingVisit=null;closeModal();cellar?.show();}else {const panel=pendingVisit||stationPanels[interaction.id];pendingVisit=null;openPanel(panel);}}if(!key)shownInteraction='';
   $('#walk-hint').hidden=state.elapsed>25||!!p.path.length||!!modalState;renderAI();refreshChat();renderProgress();audio.update(state);
   if(state.phase==='closed'&&state.summary&&summaryShown!==state.day){summaryShown=state.day;openPanel('summary');save();}
   guide?.update(state);
@@ -183,6 +196,7 @@ async function clickAction(button){const d=button.dataset;switch(d.action){
   case 'lighting':lighting=lighting==='auto'?'night':lighting==='night'?'day':'auto';renderUI();return;
   case 'menu-toggle':perform({type:'menu',drink:d.drink});return;
   case 'restock':perform({type:'restock',drink:d.drink});return;
+  case 'supply-save':{const box=button.closest('.restock-controls');perform({type:'cellar-policy',enabled:box.querySelector('[data-restock-auto]').checked,budget:Number(box.querySelector('[data-restock-budget]').value),low:Number(box.querySelector('[data-restock-low]').value),target:Number(box.querySelector('[data-restock-target]').value)},{refresh:false});return;}
   case 'hire':perform({type:'hire',id:d.staff});return;
   case 'upgrade':perform({type:'upgrade',id:d.upgrade});return;
   case 'start-event':perform({type:'event'});return;
@@ -193,7 +207,10 @@ async function clickAction(button){const d=button.dataset;switch(d.action){
   case 'close-draw':$('#draw-root').innerHTML='';return;
   case 'sound':audio.setMuted(!audio.muted);write(localStorage,'moonlit-muted',audio.muted?'1':'0');renderUI();return;
   case 'accept-suggestion':visit(d.suggestion==='recipe'?'recipes':'night');return;
-  case 'chat':approach({kind:'staff',id:d.staff});return;
+  case 'chat':if(staffDefinition(d.staff)?.area==='cellar'){if(!cellarActive){closeModal();cellar?.show();}openChat(d.staff);}else if(cellarActive){pendingFloorChat=d.staff;cellar.hide();}else approach({kind:'staff',id:d.staff});return;
+  case 'hire-tom':perform({type:'cellar-hire-tom'});return;
+  case 'memory-pin':case 'memory-forget':{const w=allWorkers(state).find(w=>w.id===modalState?.id);if(w){(d.action==='memory-pin'?pinMemory:forgetMemory)(w,d.memory);save();document.activeElement?.blur();refreshChat();}return;}
+  case 'plan-cancel':case 'plan-apply':{const w=allWorkers(state).find(w=>w.id===modalState?.id),p=w?.pendingPlan;if(!p)return;if(d.action==='plan-apply'){const result=perform(p.type==='policy'?{type:'apply-work-policy',staff:w.id,policy:p.value}:{type:'cellar-rule',drink:p.drink,enabled:true,low:p.low,target:p.target},{refresh:false});if(!result.ok)return;addMemory(w,{type:'arrangement',source:'applied',day:state.day,importance:6,text:p.type==='policy'?'已应用分工：'+p.value:'已保存补货安排：'+p.drink+'，低于 '+p.low+' 补到 '+p.target});}w.pendingPlan=null;save();document.activeElement?.blur();refreshChat();return;}
   case 'assign':if(state.player.job?.table===d.table)act(state,{type:'cancel-player'});perform({type:'assign',staff:d.staff,table:d.table});return;
   case 'expand-table':perform({type:'expand-table'});return;
   case 'fire-staff':perform({type:'fire-staff',id:d.staff});hotspotSignature='';return;
@@ -211,15 +228,16 @@ async function clickAction(button){const d=button.dataset;switch(d.action){
   case 'export':exportSave();return;
   case 'import':$('#import-file').click();return;
   case 'reset-confirm':openPanel('reset');return;
-  case 'replay-intro':closeModal();introActive=true;void playIntro({mode:'full'}).finally(()=>{introActive=false;previous=performance.now();renderUI();});return;
-  case 'reset-guide':guide?.reset();closeModal();renderUI();toast('新手引导已重新开始。');return;
+  case 'replay-intro':if(debugging)return;closeModal();introActive=true;void playIntro({mode:'full'}).finally(()=>{introActive=false;previous=performance.now();renderUI();});return;
+  case 'reset-guide':if(debugging)return;guide?.reset();closeModal();renderUI();toast('新手引导已重新开始。');return;
   case 'reset':{
     // 重开一档 = 新玩家：存档、引导、开场邀请函一起回到原点，直接重播完整序章。
     ai.abort();state=createGame();summaryShown=0;lighting='auto';shownInteraction='';hotspotSignature='';
     seenEvents.clear();$('#draw-root').innerHTML='';
-    guide?.reset(1);
-    try{localStorage.removeItem('moonlit-invitation-v1');}catch{}
+    if(!debugging)guide?.reset(1);
+    if(!debugging)try{localStorage.removeItem('moonlit-invitation-v1');}catch{}
     closeModal();save();renderUI();
+    if(debugging)return;
     const back=()=>{introActive=false;previous=performance.now();renderUI();};
     introActive=true;
     void playIntro({mode:'full',onReveal:back}).finally(back);
@@ -230,24 +248,25 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
 document.addEventListener('click',event=>{if(event.target.classList.contains('modal-backdrop'))closeModal();});
 document.addEventListener('pointerdown',()=>{void audio.unlock();},{passive:true});
 document.addEventListener('submit',event=>{if(event.target.id==='chat-form'){event.preventDefault();void sendChat($('#chat-input').value);}if(event.target.id==='settings-form')event.preventDefault();});
-document.addEventListener('change',event=>{if(event.target.matches('[data-staff-role],#staff-role')){perform({type:'role',staff:event.target.dataset.staff,role:event.target.value},{refresh:false});const worker=state.staff.find(w=>w.id===event.target.dataset.staff);if(worker)event.target.value=worker.role;}});
+document.addEventListener('change',event=>{if(event.target.matches('[data-restock-auto]'))perform({type:'cellar-auto',enabled:event.target.checked},{refresh:false});if(event.target.matches('[data-staff-role],#staff-role')){perform({type:'role',staff:event.target.dataset.staff,role:event.target.value},{refresh:false});const worker=allWorkers(state).find(w=>w.id===event.target.dataset.staff);if(worker)event.target.value=worker.role;}});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeModal();$('#draw-root').innerHTML='';}if(event.target.id==='chat-input'&&event.key==='Enter'&&!event.shiftKey){event.preventDefault();void sendChat(event.target.value);}});
 $('#import-file').addEventListener('change',async event=>{const file=event.target.files[0];if(!file)return;try{if(file.size>2_000_000)throw new Error();const next=parseGame(await file.text());ai.abort();state=next;summaryShown=0;shownInteraction='';hotspotSignature='';closeModal();save();renderUI();toast('存档已恢复。');}catch{toast('存档无效，现有进度已保留。',true);}finally{event.target.value='';}});
-$('#world').addEventListener('click',event=>{if(!renderer)return;const hit=renderer.hitTest(event.clientX,event.clientY);if(!hit)return;if(hit.type==='ground'){closeModal();perform({type:'move-player',x:hit.x,y:hit.y},{refresh:false,notify:false});}else if(['guest','service'].includes(hit.type))approach({kind:'table',id:hit.id});else approach({kind:hit.type,id:hit.id});});
+$('#world').addEventListener('click',event=>{if(!renderer)return;const hit=renderer.hitTest(event.clientX,event.clientY);if(!hit)return;if(hit.type==='ground'){closeModal();perform({type:'move-player',x:hit.x,y:hit.y},{refresh:false,notify:false});}else if(['guest','service'].includes(hit.type))approach({kind:'table',id:hit.id});else if(hit.type==='cellar')approach({kind:'station',id:'cellar'});else approach({kind:hit.type,id:hit.id});});
 // 序章要先占住 introActive：不然引导卡片会抢先渲染一次并把"已展示"记下来。
-const introPending=introMode()||null;
+const introPending=debugging?null:introMode()||null;
 if(introPending){introActive=true;}
 view.fillIcons();renderUI();save();
-try{renderer=await createRenderer($('#world'));$('#loading').remove();renderer.paint();guide=mountGuide({project:point=>renderer.project(point),paint:node=>renderer.paint(node),blocked:()=>introActive||cellarActive,aiReady:()=>!!config.key});
+try{renderer=await createRenderer($('#world'));$('#loading').remove();renderer.paint();if(!debugging)guide=mountGuide({project:point=>renderer.project(point),paint:node=>renderer.paint(node),blocked:()=>introActive||cellarActive,aiReady:()=>!!config.key});
   cellar=createCellarUI({
-    getState:()=>state,getRenderer:()=>renderer,
+    getState:()=>state,getRenderer:()=>renderer,onChat:id=>openChat(id),onEndChat:()=>closeModal(),
     act:action=>{const result=act(state,action);save();return result;},
     onChange:result=>{toast(result.message,!result.ok);renderUI();},
-    onOpen:()=>{cellarActive=true;},
-    onClose:()=>{cellarActive=false;previous=performance.now();renderUI();}
+    onOpen:()=>{closeModal();cellarActive=true;},
+    onClose:()=>{closeModal();cellarActive=false;previous=performance.now();if(pendingFloorChat){const id=pendingFloorChat;pendingFloorChat=null;approach({kind:'staff',id});}renderUI();}
   });
+  if(debugging)createDebugUI({getState:()=>state,replace:next=>{ai.abort();closeModal();state=next;summaryShown=0;shownInteraction='';hotspotSignature='';seenEvents.clear();save();renderUI();cellar?.hide();},abort:()=>ai.abort(),save,act:action=>perform(action,{refresh:false}),advance:seconds=>{advance(state,seconds);save();renderUI();},paint:node=>renderer.paint(node)});
   renderUI();let lastDraw=0,lastUI=0,lastSave=0,lastAI=0;
-  function loop(time){const dt=Math.min(.25,Math.max(0,(time-previous)/1000));previous=time;if(!introActive&&!cellarActive)advance(state,dt);if(time-lastDraw>30){renderer.draw(state,time,lighting);renderHotspots();lastDraw=time;}if(time-lastUI>200){renderUI();lastUI=time;}if(time-lastSave>2000){save();lastSave=time;}if(time-lastAI>750){ai.tick();lastAI=time;}requestAnimationFrame(loop);}
+  function loop(time){const dt=Math.min(.25,Math.max(0,(time-previous)/1000));previous=time;if(!introActive)advance(state,dt);if(time-lastDraw>30){renderer.draw(state,time,lighting);renderHotspots();lastDraw=time;}if(time-lastUI>200){renderUI();cellar?.refresh();lastUI=time;}if(time-lastSave>2000){save();lastSave=time;}if(time-lastAI>750){ai.tick();lastAI=time;}requestAnimationFrame(loop);}
   function startLoop(){if(loopStarted)return;loopStarted=true;previous=performance.now();requestAnimationFrame(loop);}
   document.addEventListener('visibilitychange',()=>{previous=performance.now();save();});
   const mode=introPending;

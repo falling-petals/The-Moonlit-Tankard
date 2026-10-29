@@ -1,0 +1,99 @@
+{
+  "checks": [
+    "lower stock rows can scroll",
+    "purchase preserves sheet, scroller, card button, scroll and focus",
+    "purchase uses the real six-unit cost and updates stock",
+    "full stock updates the existing disabled button and meter",
+    "1366x768 stock panel centered and in bounds",
+    "1366x768 readable scrolling viewport",
+    "1440x900 stock panel centered and in bounds",
+    "1440x900 readable scrolling viewport",
+    "1024x768 stock panel centered and in bounds",
+    "1024x768 readable scrolling viewport",
+    "600x768 stock panel centered and in bounds",
+    "600x768 readable scrolling viewport",
+    "affordable drink starts enabled",
+    "purchase immediately disables unaffordable existing controls",
+    "ready pickup list appears without replacing inventory or moving scroll/focus",
+    "expired ready pickup list disappears while inventory stays mounted",
+    "instant paid replenishment live-updates the same mounted stock panel",
+    "automatic purchase charge live-updates gold footer",
+    "no browser errors",
+    "normal save is untouched"
+  ],
+  "errors": [],
+  "sizes": [
+    {
+      "viewport": [
+        1366,
+        768
+      ],
+      "sheet": {
+        "x": 233,
+        "y": 24,
+        "width": 900,
+        "height": 720
+      },
+      "content": {
+        "x": 234,
+        "y": 155.171875,
+        "width": 898,
+        "height": 532.828125
+      }
+    },
+    {
+      "viewport": [
+        1440,
+        900
+      ],
+      "sheet": {
+        "x": 270,
+        "y": 40,
+        "width": 900,
+        "height": 820
+      },
+      "content": {
+        "x": 271,
+        "y": 171.171875,
+        "width": 898,
+        "height": 632.828125
+      }
+    },
+    {
+      "viewport": [
+        1024,
+        768
+      ],
+      "sheet": {
+        "x": 62,
+        "y": 24,
+        "width": 900,
+        "height": 720
+      },
+      "content": {
+        "x": 63,
+        "y": 155.171875,
+        "width": 898,
+        "height": 532.828125
+      }
+    },
+    {
+      "viewport": [
+        600,
+        768
+      ],
+      "sheet": {
+        "x": 12,
+        "y": 18,
+        "width": 576,
+        "height": 732
+      },
+      "content": {
+        "x": 13,
+        "y": 140.375,
+        "width": 574,
+        "height": 553.625
+      }
+    }
+  ]
+}

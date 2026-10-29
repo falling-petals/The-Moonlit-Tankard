@@ -1,0 +1,23 @@
+{
+  "checks": [
+    "named cellar sprites draw actual nontransparent pixels",
+    "real simulation produces and delivers target twelve portions",
+    "actual procurement paid twelve ingredient costs once",
+    "no duplicate paid batches or stranded output",
+    "first cellar operating day has no natural mice",
+    "reload preserves produced quantities and budget",
+    "seven named employee portraits and separate Tom loaded",
+    "expensive Claude price or employed state visible",
+    "no undefined character skills",
+    "debug leaves normal game save absent",
+    "gallery contains legacy and thirteen expanded crew sheets",
+    "cellar has no horizontal overflow at1024",
+    "cellar has no horizontal overflow at1920"
+  ],
+  "errors": [],
+  "screenshots": [
+    "screenshots/crew-cellar-production.png",
+    "screenshots/crew-management.png",
+    "screenshots/crew-five-staff-room.png"
+  ]
+}

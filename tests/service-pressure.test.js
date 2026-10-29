@@ -21,10 +21,10 @@ test('player picks up ready meal at pass and physically delivers, cancellation r
  assert.equal(act(s,{type:'player-pickup',table:t.id}).ok,true);assert.equal(act(s,{type:'player-pickup',table:t.id}).ok,false);act(s,{type:'cancel-player'});assert.equal(t.status,'ready');assert.equal(s.stock.ale,11);
  act(s,{type:'player-pickup',table:t.id});advance(s,30);assert.ok(s.player.carrying);assert.equal(s.stats.served,0);act(s,{type:'player-deliver',table:t.id});advance(s,30);assert.equal(s.stats.served,1);assert.equal(s.stock.ale,11);
 });
-test('staff cap and irreversible hiring cost make choosing three of four real',()=>{
- const s=createGame();s.gold=5000;act(s,{type:'hire',id:'tuantuan'});act(s,{type:'hire',id:'xinghe'});assert.equal(s.staff.length,MAX_STAFF);const gold=s.gold;
- assert.equal(act(s,{type:'hire',id:'xianyue'}).ok,false);assert.equal(s.gold,gold);assert.equal(act(s,{type:'fire-staff',id:'xinghe'}).ok,true);assert.equal(s.gold,gold);assert.equal(act(s,{type:'hire',id:'xianyue'}).ok,true);
+test('five floor workers can be hired and returning workers cost gold again',()=>{
+ const s=createGame();s.gold=100000;for(const id of ['tuantuan','xinghe','xianyue','claude'])assert.equal(act(s,{type:'hire',id}).ok,true);assert.equal(s.staff.length,MAX_STAFF);const gold=s.gold;assert.equal(act(s,{type:'hire',id:'claude'}).ok,false);assert.equal(s.gold,gold);assert.equal(act(s,{type:'fire-staff',id:'claude'}).ok,true);assert.equal(act(s,{type:'hire',id:'claude'}).ok,true);assert.equal(s.gold,gold-19200);
 });
+
 test('accepted requests alter preparation and actual payout; ignored request fails and breaks combo',()=>{
  const s=createGame(),t=waiting(s);act(s,{type:'hire',id:'tuantuan'});s.staff[0].chatWith='player';act(s,{type:'role',staff:'tuantuan',role:'all'});t.request={id:'warm',fulfilled:false};quiet(s);advance(s,10);
  assert.equal(s.staff[1].job,null);assert.equal(s.stock.ale,12,'chef waits for the request before consuming stock');

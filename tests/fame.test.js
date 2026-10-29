@@ -53,7 +53,7 @@ test('version one 存档迁移到最新版：按口碑补齐星级，照常开�
   old.version=1;old.reputation=4.62;
   delete old.stars;delete old.milestones;delete old.pendingMilestone;delete old.starNote;delete old.cellar;
   const s=loadGame(JSON.stringify(old));
-  assert.equal(s.version,3);
+  assert.equal(s.version,5);
   assert.equal(s.stars,3);
   assert.deepEqual(s.milestones,[]);
   assert.equal(s.pendingMilestone,null);

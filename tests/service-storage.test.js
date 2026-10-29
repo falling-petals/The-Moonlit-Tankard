@@ -61,14 +61,7 @@ test('new nested request and companion data use whitelists and exclude credentia
   const raw=publicSave(s);assert.equal(raw.includes(secret),false);assert.doesNotThrow(()=>parseGame(raw));
 });
 
-test('four-person legacy roster migrates off duty and retains real memories on rehire',()=>{
-  const s=createGame();s.gold=2000;s.staff=STAFF.map((d,i)=>createEmployee(d.id,i));
-  s.staff[3].memories=['店主喜欢雨夜'];delete s.reserve;
-  const r=parseGame(s);assert.equal(r.staff.length,3);assert.equal(r.reserve[0].id,'xianyue');
-  assert.equal(act(r,{type:'hire',id:'xianyue'}).ok,false);
-  act(r,{type:'fire-staff',id:'xinghe'});const before=r.gold;
-  assert.equal(act(r,{type:'hire',id:'xianyue'}).ok,true);assert.ok(r.gold<before);
-  assert.deepEqual(r.staff.find(w=>w.id==='xianyue').memories,['店主喜欢雨夜']);
-  assert.doesNotThrow(()=>parseGame(publicSave(r)));
-  r.reserve[0].apiKey='RESERVE_SECRET';assert.equal(publicSave(r).includes('RESERVE_SECRET'),false);
+test('four-person legacy roster retains IDs and memories; fire and rehire preserves them',()=>{
+ const s=createGame();s.version=3;s.gold=100000;s.staff=STAFF.filter(d=>d.area==='floor').slice(0,4).map((d,i)=>createEmployee(d.id,i));s.staff[3].memories=['rainy evenings'];delete s.reserve;
+ const r=parseGame(s);assert.equal(r.staff.length,4);assert.deepEqual(r.reserve,[]);act(r,{type:'fire-staff',id:'xianyue'});r.reserve[0].apiKey='RESERVE_SECRET';assert.equal(publicSave(r).includes('RESERVE_SECRET'),false);const before=r.gold;assert.equal(act(r,{type:'hire',id:'xianyue'}).ok,true);assert.equal(r.gold,before-4800);assert.deepEqual(r.staff.find(w=>w.id==='xianyue').memories,['rainy evenings']);assert.doesNotThrow(()=>parseGame(publicSave(r)));
 });

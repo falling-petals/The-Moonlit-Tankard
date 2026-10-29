@@ -92,3 +92,14 @@ test('aborting a real stream rejects rather than completing its partial speech',
   try{await assert.rejects(requestStaffReply({baseUrl:`http://127.0.0.1:${server.address().port}`,key:'test-only'}, {name:'青芽'},{},'你好',{signal:controller.signal,onPartial:text=>{partial=text;controller.abort();}}),/取消/);assert.equal(partial,'半句话');}
   finally{server.closeAllConnections();server.close();}
 });
+
+test('applied work arrangements override stale dialogue and pending-plan wording in model instructions',async()=>{
+  let payload;const context={workPolicy:'clean-first',workArrangement:{current:'优先收桌，已生效',pending:null,recentlyApplied:['店主已应用优先收桌']},recentDialogue:[{role:'staff',text:'等你点应用'}]};
+  const server=http.createServer(async(req,res)=>{let body='';for await(const chunk of req)body+=chunk;payload=JSON.parse(body);res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({choices:[{message:{content:'{"speech":"优先收桌已生效。","memory":"","plan":null}'}}]}));});
+  await new Promise(r=>server.listen(0,'127.0.0.1',r));
+  try{
+    await requestStaffReply({baseUrl:`http://127.0.0.1:${server.address().port}`,key:'test-only'},{name:'DeepSeek',memories:['等待店主应用收桌安排']},context,'确认当前安排');
+    assert.deepEqual(JSON.parse(payload.messages[1].content).经营状态.workArrangement,context.workArrangement);
+    assert.ok(payload.messages[0].content.endsWith('当前工作安排事实：'+JSON.stringify(context.workArrangement)));
+  }finally{server.closeAllConnections();server.close();}
+});

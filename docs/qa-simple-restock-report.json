@@ -1,0 +1,21 @@
+{
+  "checks": [
+    "manual restocking is available without any cellar employee",
+    "auto toggle explains missing employee and stays disabled",
+    "manual purchase is instant and charges ingredient price",
+    "hiring enables auto without additional setup",
+    "automatic paid stock arrives within the first second",
+    "automatic purchases alone consume the daily budget",
+    "restock cooldown does not remount the menu panel",
+    "invalid targets are rejected without resetting the editor",
+    "live updates preserve unsaved values and input focus",
+    "policy persists atomically across all drink rules",
+    "paid inventory has no production queues or casks",
+    "reload preserves off toggle and does not charge again",
+    "a mounted cellar editor synchronizes settings saved upstairs",
+    "external policy updates preserve an unsaved cellar draft",
+    "normal progress remains untouched",
+    "no browser runtime errors"
+  ],
+  "errors": []
+}
