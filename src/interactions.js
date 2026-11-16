@@ -35,7 +35,7 @@ export function createInteractions({getState,getConfig,getArea=()=> 'floor',onUp
     if(!worker)return null;
     if(kind==='player'&&((active&&active.kind!=='player')||social))abort();
     if(active||(social&&social!==session)){if(kind==='player')onError?.('伙伴正在回应，稍等片刻。');return null;}
-    if(!config.key){if(kind==='player')onError?.('请先在设置中连接大模型。');return null;}
+    if(!config.configured){if(kind==='player')onError?.('请先配置本机模型服务，在设置中刷新服务状态。');return null;}
     const token=generation,day=state.day;
     const valid=()=>generation===token&&getState()===state&&state.day===day&&allWorkers(state).includes(worker);
     if(kind==='player'){worker.conversation.push({role:'player',text,time:gameClock(state.elapsed)});worker.conversation=worker.conversation.slice(-40);}
@@ -113,7 +113,7 @@ export function createInteractions({getState,getConfig,getArea=()=> 'floor',onUp
       for(const w of witnesses)addMemory(w,{text,type:'event',subject:e.staff??'cellar',source:e.id,day:s.day,importance:e.type==='day-ended'?5:2});
     }
     if(memorySeen.size>500){memorySeen.clear();for(const e of s.events)memorySeen.add(e.id);}
-    if(s.phase!=='open'||s.paused||!config.auto||!config.key)return;
+    if(s.phase!=='open'||s.paused||!config.auto||!config.configured)return;
     for(const event of s.events){
       if(seen.has(event.id))continue;
       if(['recipe-drawn','combo-tier','party-started','cameo-started'].includes(event.type)){

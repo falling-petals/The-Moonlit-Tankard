@@ -1,73 +1,101 @@
-"""Local static-file launcher. Model requests are made by the browser directly.
-
-Environment credentials are never printed, saved to source, or served by an API.
-A URL fragment is consumed immediately by the page into tab session storage.
-"""
+"""Start the loopback game and Python LangChain API on the same origin."""
 from pathlib import Path
-from functools import partial
-from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
-from urllib.parse import quote
-from urllib.request import urlopen
-import argparse, base64, json, os, socket, threading, webbrowser
+import argparse
+import json
+import os
+import socket
+import sys
+import threading
+import time
+from urllib.error import URLError
+from urllib.request import ProxyHandler, build_opener
+import webbrowser
 
-ROOT=Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+SERVICE = "moonlit-tankard-langchain"
+
+def is_service(opener, base: str) -> bool:
+    try:
+        with opener.open(base + "api/ai/status", timeout=.5) as response:
+            status = json.loads(response.read(4096))
+            return isinstance(status, dict) and status.get("service") == SERVICE and status.get("framework") == "LangChain Python"
+    except (URLError, OSError, ValueError):
+        return False
 
 def environment_config():
-    key=os.environ.get('AI_DASHSCOPE_API_KEY') or os.environ.get('DASHSCOPE_API_KEY') or os.environ.get('OPENAI_API_KEY') or ''
-    dashscope=bool(os.environ.get('AI_DASHSCOPE_API_KEY') or os.environ.get('DASHSCOPE_API_KEY'))
-    return {'key':key,'baseUrl':os.environ.get('AI_BASE_URL') or os.environ.get('OPENAI_BASE_URL') or ('https://dashscope.aliyuncs.com/compatible-mode/v1' if dashscope else 'https://api.openai.com/v1'),
-            'model':os.environ.get('AI_MODEL') or ('qwen-plus' if dashscope else 'gpt-4.1-mini')}
+    """Legacy QA compatibility: credentials can no longer be obtained by callers."""
+    from server.config import ModelConfig
+    return {**ModelConfig.from_environment().public_status(), "key": ""}
 
-def bootstrap_fragment(config):
-    if not config['key']:return ''
-    payload=base64.b64encode(json.dumps(config,ensure_ascii=True).encode()).decode()
-    return '#bootstrap='+quote(payload,safe='')
+def bootstrap_fragment(_config):
+    """Old QA callers can open the game, but never encode environment secrets."""
+    return ""
 
-class StaticHandler(SimpleHTTPRequestHandler):
-    def log_message(self,*args): pass
-    def end_headers(self):
-        self.send_header('Cache-Control','no-store')
-        self.send_header('Referrer-Policy','no-referrer')
-        super().end_headers()
-
-class LocalStaticServer(ThreadingHTTPServer):
-    allow_reuse_address=False
-    def server_bind(self):
-        if hasattr(socket,'SO_EXCLUSIVEADDRUSE'):
-            self.socket.setsockopt(socket.SOL_SOCKET,socket.SO_EXCLUSIVEADDRUSE,1)
-        super().server_bind()
-
-def choose_server(port):
-    """Reuse our static site so repeated launches retain the same save origin."""
-    handler=partial(StaticHandler,directory=str(ROOT))
-    for candidate in range(port,port+20):
-        base=f'http://127.0.0.1:{candidate}/'
+def choose_server(port: int):
+    """Reuse only the Python API host, preserving its browser save origin."""
+    opener = build_opener(ProxyHandler({}))
+    for candidate in range(port, min(port + 20, 65536)):
+        base = f"http://127.0.0.1:{candidate}/"
+        if is_service(opener, base):
+            return None, base, True
         try:
-            with urlopen(base,timeout=.5) as response:
+            with opener.open(base, timeout=.5) as response:
                 if b'content="Moonlit Tankard Local MVP"' in response.read(16000):
-                    return None,base,True
-        except Exception:pass
-        try:return LocalStaticServer(('127.0.0.1',candidate),handler),base,False
-        except OSError:continue
-    raise OSError('No local preview port is available.')
+                    raise RuntimeError("旧版静态服务仍占用游戏地址，请关闭旧服务后重新启动，以保留原地址的存档。")
+        except (URLError, OSError):
+            pass
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            if os.name == "nt":
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+            sock.bind(("127.0.0.1", candidate))
+            return sock, base, False
+        except OSError:
+            sock.close()
+            # A simultaneous launch may have bound the port but not served status yet.
+            for _ in range(10):
+                if is_service(opener, base):
+                    return None, base, True
+                time.sleep(.1)
+    raise OSError("没有可用的本机游戏端口。")
 
 def main():
-    parser=argparse.ArgumentParser(description='Launch the frontend-only Moonlit Tankard')
-    parser.add_argument('--port',type=int,default=4173)
-    parser.add_argument('--no-open',action='store_true')
-    args=parser.parse_args()
-    server,base,reused=choose_server(args.port)
-    config=environment_config()
-    print(f'Moonlit Tankard: {base}',flush=True)
-    print('Environment AI configuration detected.' if config['key'] else 'AI can be configured inside Settings.',flush=True)
+    parser = argparse.ArgumentParser(description="Launch Moonlit Tankard with Python LangChain")
+    parser.add_argument("--port", type=int, default=4173)
+    parser.add_argument("--no-open", action="store_true")
+    args = parser.parse_args()
+    if not 1 <= args.port <= 65535:
+        parser.error("port must be between 1 and 65535")
+    try:
+        import uvicorn
+        from server.app import create_app
+        from server.config import ModelConfig
+    except ImportError:
+        print("缺少Python服务依赖，请先运行 uv sync --locked，再双击 start.cmd。", flush=True)
+        return 1
+    try:
+        config = ModelConfig.from_environment()
+        sock, base, reused = choose_server(args.port)
+    except (ValueError, OSError, RuntimeError) as error:
+        print(str(error), flush=True)
+        return 1
+    print(f"Moonlit Tankard: {base}", flush=True)
     if reused:
-        print('Reusing the existing local game.',flush=True)
-        if not args.no_open:webbrowser.open(base+bootstrap_fragment(config))
-        return
+        print("Reusing the local Python LangChain game service.", flush=True)
+        if not args.no_open:
+            webbrowser.open(base)
+        return 0
+    print("LangChain model configured on server." if config.public_status()["configured"] else "Set a model API key in the service environment to enable dialogue; gameplay is available.", flush=True)
     if not args.no_open:
-        threading.Timer(.5,lambda:webbrowser.open(base+bootstrap_fragment(config))).start()
-    try:server.serve_forever()
-    except KeyboardInterrupt:pass
-    finally:server.server_close()
+        threading.Timer(.8, lambda: webbrowser.open(base)).start()
+    try:
+        app = create_app(config)
+        service = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=args.port, log_level="warning", access_log=False))
+        service.run(sockets=[sock])
+    finally:
+        sock.close()
+    return 0
 
-if __name__=='__main__':main()
+if __name__ == "__main__":
+    raise SystemExit(main())

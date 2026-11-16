@@ -1,0 +1,20 @@
+[project]
+name = "moonlit-tankard"
+version = "0.2.0"
+description = "A local pixel tavern game with a Python LangChain dialogue service"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn>=0.34,<1",
+    "langchain-core>=1,<2",
+    "langchain-openai>=1,<2",
+    "httpx>=0.28,<1",
+]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "pillow>=11,<13",
+]

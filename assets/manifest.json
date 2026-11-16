@@ -1989,11 +1989,6 @@
       ],
       "transparentPixelFraction": 0.553
     },
-    "zone-studies": {
-      "src": "assets/art/zone-studies.png",
-      "width": 1536,
-      "height": 1024
-    },
     "crew-deepseek-atlas": {
       "src": "assets/art/crew-deepseek-atlas.png",
       "width": 1254,
@@ -2851,11 +2846,6 @@
         }
       ],
       "transparentPixelFraction": 0.705
-    },
-    "community-lineup": {
-      "src": "assets/art/community-lineup.png",
-      "width": 1280,
-      "height": 427
     },
     "cellar-room": {
       "src": "assets/art/cellar-room.jpg",

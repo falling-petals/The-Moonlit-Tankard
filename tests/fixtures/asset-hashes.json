@@ -1,0 +1,73 @@
+{
+  "legacy": {
+    "furniture-atlas": "600d4f95e3d7c526acdd65081de82b0e4fb8c1f7d4454040d07abe63eea98ca4",
+    "player-atlas": "6c7ace05afed76aab80657ed5fe5270880394ccb43111259524d53ec431df138"
+  },
+  "motion": [
+    {
+      "id": "deepseek",
+      "path": "assets/art/crew-deepseek-motion-v2-atlas.png",
+      "sha256": "c572642020cc7476ed0852bca11a1a19fbaa923b407affad2126e501d6e72a0b"
+    },
+    {
+      "id": "qwen",
+      "path": "assets/art/crew-qwen-motion-v2-atlas.png",
+      "sha256": "42d9edc655e3ba7a8dcd7e39346ce3a44afa088b6f78a9e9d5903908dd667115"
+    },
+    {
+      "id": "tom",
+      "path": "assets/art/crew-tom-motion-v2-atlas.png",
+      "sha256": "0ab9e01c3b1e1353bc3fa00582f826fe41ecf0327dc435c25f933e0a0f00c181"
+    },
+    {
+      "id": "claude",
+      "path": "assets/art/crew-claude-motion-v2-atlas.png",
+      "sha256": "ecf085bc30f8d502aef8e93973c4d0fefcefc84dbfc45813b6f580c09b8e59b6"
+    },
+    {
+      "id": "gpt",
+      "path": "assets/art/crew-gpt-motion-v2-atlas.png",
+      "sha256": "7a86d5c5598be1046dc9736bc1b81e4bb08044ab5d447b6fae0058bda78afcf7"
+    },
+    {
+      "id": "gemini",
+      "path": "assets/art/crew-gemini-motion-v2-atlas.png",
+      "sha256": "920bde7f34d31fd71d08cc252ccb64db3ddc3bd2fe8f7b232b2c365c9e4e3900"
+    },
+    {
+      "id": "z",
+      "path": "assets/art/crew-z-motion-v2-atlas.png",
+      "sha256": "7074f89953998fdd8c715ccb175224199d5a31ad65de26e76d63fad835a66e6b"
+    },
+    {
+      "id": "wenxin",
+      "path": "assets/art/crew-wenxin-motion-v2-atlas.png",
+      "sha256": "765b5cbe2c52e441dcb3c5de585eca81ffa0c2f9386c530028001bf13c5e010c"
+    },
+    {
+      "id": "kimi",
+      "path": "assets/art/crew-kimi-motion-v2-atlas.png",
+      "sha256": "46ac2fbf027e17ffeb2cb4b3ad234a6d39808eea6fb4e736bd864f913e71e7bc"
+    },
+    {
+      "id": "tencent",
+      "path": "assets/art/crew-tencent-motion-v2-atlas.png",
+      "sha256": "749ef85229f2414c09695ea1248372cae83e9c0e5556e1ab268266f61eb6981c"
+    },
+    {
+      "id": "grok",
+      "path": "assets/art/crew-grok-motion-v2-atlas.png",
+      "sha256": "ab42ff5836fb029ce2fb0a66676e87d650ee95cdf770bce72f02c92c260111b6"
+    },
+    {
+      "id": "mistral",
+      "path": "assets/art/crew-mistral-motion-v2-atlas.png",
+      "sha256": "d982eff4a1f8edcaa8965075d36f324c437315033787e96bb96bf58c6bfe510b"
+    },
+    {
+      "id": "seed",
+      "path": "assets/art/crew-seed-motion-v2-atlas.png",
+      "sha256": "7776b3be573c3707d3d5e035d7a38734b8d0e178762b4b98c96e0ac8837e5926"
+    }
+  ]
+}

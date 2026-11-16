@@ -6,13 +6,13 @@ import {createInteractions} from '../src/interactions.js';
 const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
 test('one dialogue call drives thinking and returned expression without creating another request',async()=>{
   let finish;const s=createGame(),w=s.staff[0];let calls=0;
-  const ai=createInteractions({getState:()=>s,getConfig:()=>({key:'test-only',auto:false}),now:()=>1000,requestReply:()=>{calls++;return new Promise(resolve=>finish=resolve);}});
+  const ai=createInteractions({getState:()=>s,getConfig:()=>({configured:true,auto:false}),now:()=>1000,requestReply:()=>{calls++;return new Promise(resolve=>finish=resolve);}});
   const pending=ai.ask(w.id,'今天开心吗');assert.equal(w.expression,'thinking');finish({speech:'好呀！',emotion:'happy'});await pending;
   assert.equal(w.expression,'happy');assert.equal(calls,1);assert.equal(w.expressionUntil,12000);
 });
 test('cancelling an in-flight chat clears its thinking pose and ignores a late expression',async()=>{
   let finish;const s=createGame(),w=s.staff[0];
-  const ai=createInteractions({getState:()=>s,getConfig:()=>({key:'test-only',auto:false}),requestReply:()=>new Promise(resolve=>finish=resolve)});
+  const ai=createInteractions({getState:()=>s,getConfig:()=>({configured:true,auto:false}),requestReply:()=>new Promise(resolve=>finish=resolve)});
   const pending=ai.ask(w.id,'聊聊');ai.abort();assert.equal(w.expression,'neutral');finish({speech:'太好了！',emotion:'happy'});await pending;assert.equal(w.expression,'neutral');
 });
 function setup(requestReply=async()=>({speech:'今天这阵忙完，一起看看窗外吧。',memory:'',suggestion:null})){
@@ -20,7 +20,7 @@ function setup(requestReply=async()=>({speech:'今天这阵忙完，一起看看
   state.staff.push(createEmployee('tuantuan',1));
   state.staff[0].x=500;state.staff[0].y=500;state.staff[1].x=550;state.staff[1].y=500;
   const waits=[],calls=[];
-  const api=createInteractions({getState:()=>state,getConfig:()=>({key:'test-only',auto:true}),now:()=>time,
+  const api=createInteractions({getState:()=>state,getConfig:()=>({configured:true,auto:true}),now:()=>time,
     delay:ms=>new Promise(resolve=>waits.push({ms,resolve})),requestReply:async(...args)=>{calls.push(args);return requestReply(...args);}});
   return {api,calls,waits,get state(){return state;},replace:()=>{state=createGame();},advance:ms=>{time+=ms;}};
 }
@@ -95,6 +95,14 @@ test('abort clears partial speech without saving it into dialogue memory or bubb
   assert.equal(h.state.staff[0].bubble,'');assert.equal(h.state.staff[0].conversation.filter(c=>c.role==='staff').length,0);
   h.api.abort();assert.equal(h.api.status.partial,'');finish({speech:'尚未完成的旧回复',memory:'不可保存'});await reply;
   assert.deepEqual(h.state.staff[0].memories,[]);assert.equal(h.state.staff[0].bubble,'');
+});
+
+test('a stream failure after visible speech never commits provisional dialogue or memory',async()=>{
+  const h=setup(async(...args)=>{args[4].onPartial('还未验证的半句');throw Error('模型回复格式不完整，请重试。');});
+  assert.equal(await h.api.ask('qingya','你好'),false);
+  assert.equal(h.api.status.partial,'');assert.equal(h.api.status.busy,false);
+  assert.deepEqual(h.state.staff[0].memories,[]);assert.equal(h.state.staff[0].bubble,'');
+  assert.equal(h.state.staff[0].conversation.filter(item=>item.role==='staff').length,0);
 });
 
 test('player preempts the gap between colleague turns',async()=>{

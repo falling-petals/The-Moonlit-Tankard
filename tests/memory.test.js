@@ -26,17 +26,17 @@ test('a model plan is only a candidate; explicit validated action changes real s
 });
 test('cellar employee receives relevant memory, real cellar state and relationships in model context',async()=>{
  const s=createGame();s.cellar.workers.push(createEmployee('gemini'));const w=s.cellar.workers[0];w.relationships.qingya=4;rememberDialogue(w,'店主希望称呼他小何',2);
- let sent;const ai=createInteractions({getState:()=>s,getConfig:()=>({key:'mock-only',auto:false}),requestReply:async(config,staff,context)=>{sent={staff,context};return {speech:'小何，地窖我会照看的。',memory:'',plan:{type:'policy',value:'balanced'}};}});
+ let sent;const ai=createInteractions({getState:()=>s,getConfig:()=>({configured:true,auto:false}),requestReply:async(config,staff,context)=>{sent={staff,context};return {speech:'小何，地窖我会照看的。',memory:'',plan:{type:'policy',value:'balanced'}};}});
  assert.equal(await ai.ask('gemini','记得我叫什么吗'),true);assert.match(sent.staff.personality,/哈气/);assert.match(sent.staff.memories[0].text,/小何/);assert.equal(sent.context.coworkers.find(x=>x.name==='DeepSeek').familiarity,4);assert.equal(sent.context.cellar.mice,0);assert.deepEqual(w.pendingPlan,{type:'policy',value:'balanced'});
 });
 test('paid restocking memories record without a model connection and stay with participants',()=>{
- const s=createGame();s.gold=10000;s.milestones=['cellar'];act(s,{type:'hire',id:'wenxin'});s.stock.ale=0;act(s,{type:'cellar-budget',value:24});const ai=createInteractions({getState:()=>s,getConfig:()=>({key:'',auto:false})});
+ const s=createGame();s.gold=10000;s.milestones=['cellar'];act(s,{type:'hire',id:'wenxin'});s.stock.ale=0;act(s,{type:'cellar-budget',value:24});const ai=createInteractions({getState:()=>s,getConfig:()=>({configured:false,auto:false})});
  act(s,{type:'open'});advance(s,.25);ai.tick();ai.tick();assert.equal(s.stock.ale,4);assert.equal(s.cellar.automation.spent,24);
  assert.equal(s.cellar.workers[0].memoryBook.length,1);assert.match(s.cellar.workers[0].memoryBook[0].text,/4份/);assert.match(s.cellar.workers[0].memoryBook[0].text,/24金币/);assert.equal(s.staff[0].memoryBook.length,0);
 });
 test('private employee replies do not leak to a different employee through shared work logs',async()=>{
  const s=createGame();s.cellar.workers.push(createEmployee('gemini'),createEmployee('wenxin'));
- let second;const ai=createInteractions({getState:()=>s,getConfig:()=>({key:'mock-only',auto:false}),requestReply:async(config,staff,context)=>{if(staff.id==='gemini')return {speech:'这是我和店主私下的暗号：紫色鱼饼。',memory:''};second=context;return {speech:'收到。',memory:''};}});
+ let second;const ai=createInteractions({getState:()=>s,getConfig:()=>({configured:true,auto:false}),requestReply:async(config,staff,context)=>{if(staff.id==='gemini')return {speech:'这是我和店主私下的暗号：紫色鱼饼。',memory:''};second=context;return {speech:'收到。',memory:''};}});
  await ai.ask('gemini','记个私下的暗号');await ai.ask('wenxin','地窖进展如何？');
  assert.equal(JSON.stringify(second).includes('紫色鱼饼'),false);
  assert.equal(s.cellar.workers[1].memoryBook.length,0);

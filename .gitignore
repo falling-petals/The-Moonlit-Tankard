@@ -30,3 +30,24 @@ coverage/
 *.tmp
 .DS_Store
 Thumbs.db
+
+# Local coursework and development archives
+/开题报告/
+/项目报告/
+/AGENTS.md
+/art-prototype/
+/docs/
+/notes.md
+/screenshots/
+/task_plan.md
+/tools/qa*.py
+/tools/probes/
+/tools/build_assets.py
+/tools/inspect_ui.py
+/tools/package_release.py
+/tools/reset.html
+/tools/to-cellar.html
+/assets/art/community-lineup.png
+/assets/art/whale-maid-staff-v1.png
+/assets/art/zone-studies.png
+/ai-key.txt

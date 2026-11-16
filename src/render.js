@@ -9,7 +9,6 @@ export async function createRenderer(canvas){
   const activeCrew=new Set([...STAFF.map(d=>d.atlas),'crew-tom-atlas']);
   const activeMotion=new Set([...activeCrew].map(motionAtlas));
   const preload=id=>{
-    if(['zone-studies','community-lineup'].includes(id))return false;
     if(id.endsWith('-motion-v2-atlas'))return activeMotion.has(id);
     if(id.startsWith('crew-')&&id!=='crew-mouse-atlas')return activeCrew.has(id)&&!manifest.assets[motionAtlas(id)];
     return true;

@@ -6,13 +6,13 @@ import hashlib
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
+ASSET_HASHES = json.loads((ROOT / 'tests/fixtures/asset-hashes.json').read_text(encoding='utf-8'))
 
 
 class EventAtlasCoordinates(unittest.TestCase):
     def test_legacy_coordinate_fixes_preserve_original_source_bytes(self):
-        records = json.loads((ROOT / 'art-prototype/final/2026-10-28-legacy-frame-bounds.json').read_text(encoding='utf-8'))['assets']
-        for name, record in records.items():
-            self.assertEqual(hashlib.sha256((ROOT / 'assets/art' / (name + '.png')).read_bytes()).hexdigest(), record['sha256'])
+        for name, expected_hash in ASSET_HASHES['legacy'].items():
+            self.assertEqual(hashlib.sha256((ROOT / 'assets/art' / (name + '.png')).read_bytes()).hexdigest(), expected_hash)
 
     def test_rug_reads_whole_rug_without_the_sofa_leg(self):
         frames = json.loads((ROOT / 'assets/manifest.json').read_text(encoding='utf-8'))['assets']['furniture-atlas']['frames']
@@ -52,7 +52,7 @@ class EventAtlasCoordinates(unittest.TestCase):
 
     def test_motion_sheets_keep_original_png_bytes_and_all_twenty_frames(self):
         manifest=json.loads((ROOT/'assets/manifest.json').read_text(encoding='utf-8'))['assets']
-        records=json.loads((ROOT/'art-prototype/final/2026-10-28-motion-assets.json').read_text(encoding='utf-8'))
+        records=ASSET_HASHES['motion']
         self.assertEqual(len(records),13)
         for record in records:
             path=ROOT/record['path'];self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),record['sha256'])
